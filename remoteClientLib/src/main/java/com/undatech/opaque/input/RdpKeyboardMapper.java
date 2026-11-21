@@ -456,6 +456,10 @@ public class RdpKeyboardMapper {
     }
 
     public boolean processAndroidKeyEvent(KeyEvent event, boolean isRepeat) {
+        return processAndroidKeyEvent(event, isRepeat, false);
+    }
+
+    public boolean processAndroidKeyEvent(KeyEvent event, boolean isRepeat, boolean forceVirtualKey) {
         int vkcode = getVirtualKeyCode(event.getKeyCode());
         int unicode = event.getUnicodeChar();
 
@@ -466,7 +470,7 @@ public class RdpKeyboardMapper {
         boolean isSpecialKey = isSpecialKey(vkcode);
         debugLog(debugLog, TAG, "processAndroidKeyEvent: vkcode: " + vkcode + ", unicode: "
                 + unicode + ", preferSendingUnicode: " + preferSendingUnicode + ", isSpecialKey: " + isSpecialKey);
-        if (preferSendingUnicode && unicode > 0 && !isSpecialKey) {
+        if (!forceVirtualKey && preferSendingUnicode && unicode > 0 && !isSpecialKey) {
             vkcode = unicode | KEY_FLAG_UNICODE;
         }
 
@@ -501,7 +505,7 @@ public class RdpKeyboardMapper {
                 } else if (vkcode > 0) {
                     //android.util.Log.i("KeyMapper", "vkcode > 0" + vkcode);
                     listener.processVirtualKey(vkcode, true);
-                } else if (event.getUnicodeChar() != 0) {
+                } else if (!forceVirtualKey && unicode != 0) {
                     //android.util.Log.i("KeyMapper", "event.getUnicodeChar() != 0 " + vkcode);
                     //KeyEvent copy = new KeyEvent(event.getDownTime(), event.getEventTime(),
                     //            event.getAction(), event.getKeyCode(), event.getRepeatCount(),

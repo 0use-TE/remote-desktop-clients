@@ -85,6 +85,7 @@ import com.iiordanov.bVNC.input.Panner;
 import com.iiordanov.bVNC.input.RemoteCanvasHandler;
 import com.iiordanov.bVNC.input.RemoteClientsInputListener;
 import com.iiordanov.bVNC.input.RemoteKeyboard;
+import com.iiordanov.bVNC.input.RemoteRdpKeyboard;
 import com.iiordanov.bVNC.input.ScrollWheelButton;
 import com.iiordanov.bVNC.input.TouchInputHandler;
 import com.iiordanov.bVNC.input.TouchInputHandlerDirectDragPan;
@@ -267,6 +268,8 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         canvas.setForegrounded(hasFocus);
         if (hasFocus) {
             controlImmersive();
+        } else {
+            WindowsKeyCaptureService.releaseKeys(this);
         }
     }
 
@@ -785,6 +788,7 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
     @Override
     protected void onPause() {
+        WindowsKeyCaptureService.detach(this);
         super.onPause();
         Log.i(TAG, "onPause called.");
         try {
@@ -798,11 +802,27 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     @Override
     protected void onResume() {
         super.onResume();
+        if (Utils.isRdp(this)) {
+            WindowsKeyCaptureService.attach(this);
+        }
         Log.i(TAG, "onResume called.");
         try {
             canvas.postInvalidateDelayed(600);
         } catch (NullPointerException e) {
             Log.d(TAG, "Ignoring NullPointerException during onResume");
+        }
+    }
+
+    boolean canSendCapturedKeys() {
+        return remoteConnection != null
+                && remoteConnection.getKeyboard() instanceof RemoteRdpKeyboard
+                && remoteConnection.getRfbConn() != null
+                && remoteConnection.getRfbConn().isInNormalProtocol();
+    }
+
+    void sendCapturedKey(KeyEvent event) {
+        if (canSendCapturedKeys()) {
+            ((RemoteRdpKeyboard) remoteConnection.getKeyboard()).processCapturedWindowsKey(event);
         }
     }
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="capture_windows_key">Capture Windows key</string>
+    <string name="capture_windows_key_summary">Send the physical Windows key and its shortcuts to the active remote desktop. Tap to manage the service in Android Accessibility settings.</string>
+    <string name="capture_windows_key_service_description">Sends physical Windows-key presses and shortcuts to the remote desktop while a connected aRDP session has focus.</string>
+</resources>

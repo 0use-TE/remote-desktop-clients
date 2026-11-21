@@ -389,6 +389,10 @@ public abstract class RemoteKeyboard {
     }
 
     public boolean shouldDropModifierKeys(KeyEvent event) {
+        return shouldDropModifierKeys(event, false);
+    }
+
+    protected boolean shouldDropModifierKeys(KeyEvent event, boolean physicalKeyboard) {
         int keyCode = event.getKeyCode();
         boolean shouldDrop = false;
 
@@ -405,7 +409,7 @@ public abstract class RemoteKeyboard {
                     debugLog(this.debugLogging, TAG, "Detected repeat modifier keys, dropping");
                     shouldDrop = true;
                 }
-                if (isNoQwertyKbd(context)) {
+                if (!physicalKeyboard && isNoQwertyKbd(context)) {
                     debugLog(this.debugLogging, TAG, "Detected modifier key from touchscreen input, dropping");
                     shouldDrop = true;
                 }

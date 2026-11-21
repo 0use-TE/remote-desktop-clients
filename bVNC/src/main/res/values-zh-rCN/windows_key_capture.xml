@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="capture_windows_key">捕获 Windows 键</string>
+    <string name="capture_windows_key_summary">将实体键盘的 Windows 键及其快捷键发送到当前远程桌面。点按可在 Android 无障碍设置中管理此服务。</string>
+    <string name="capture_windows_key_service_description">当已连接的 aRDP 会话获得焦点时，将实体 Windows 键及其快捷键发送到远程桌面。</string>
+</resources>

@@ -30,6 +30,18 @@
         android:label="@string/ardp_app_name"
         android:theme="@style/AppThemeDayNight"
         tools:replace="android:label,android:theme">
+        <service
+            android:name="com.iiordanov.bVNC.WindowsKeyCaptureService"
+            android:exported="true"
+            android:label="@string/capture_windows_key"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/windows_key_capture_service" />
+        </service>
         <activity
             android:name="com.undatech.opaque.ConnectionGridActivity"
             android:configChanges="keyboardHidden"

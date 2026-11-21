@@ -34,9 +34,18 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
     }
 
     public boolean processLocalKeyEvent(int keyCode, KeyEvent evt, int additionalMetaState) {
+        return processLocalKeyEvent(keyCode, evt, additionalMetaState, false);
+    }
+
+    public void processCapturedWindowsKey(KeyEvent event) {
+        processLocalKeyEvent(event.getKeyCode(), event, 0, true);
+    }
+
+    private boolean processLocalKeyEvent(int keyCode, KeyEvent evt, int additionalMetaState,
+                                         boolean capturedWindowsKey) {
         debugLog(App.debugLog, TAG, "processLocalKeyEvent: " + evt.toString() + " " + keyCode);
         // Drop repeated modifiers
-        if (shouldDropModifierKeys(evt))
+        if (shouldDropModifierKeys(evt, capturedWindowsKey))
             return true;
         boolean isRepeat = evt.getRepeatCount() > 0;
         rdpcomm.remoteKeyboardState.detectHardwareMetaState(evt);
@@ -81,7 +90,7 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
                 return true;
             } else {
                 // Send the key to be processed through the KeyboardMapper.
-                return keyboardMapper.processAndroidKeyEvent(evt, isRepeat);
+                return keyboardMapper.processAndroidKeyEvent(evt, isRepeat, capturedWindowsKey);
             }
         } else {
             return false;

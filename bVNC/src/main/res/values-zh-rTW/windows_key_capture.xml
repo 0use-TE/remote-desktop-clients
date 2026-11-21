@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="capture_windows_key">擷取 Windows 鍵</string>
+    <string name="capture_windows_key_summary">將實體鍵盤的 Windows 鍵及其快速鍵傳送到目前的遠端桌面。輕觸即可在 Android 無障礙設定中管理此服務。</string>
+    <string name="capture_windows_key_service_description">當已連線的 aRDP 工作階段取得焦點時，將實體 Windows 鍵及其快速鍵傳送到遠端桌面。</string>
+</resources>
