@@ -1,213 +1,54 @@
-# Intro
+# OuseRDP
 
-This is the source code for bVNC, aRDP, aSPICE and Opaque, four remote desktop
-clients for Android.
+让安卓平板，接上你的 Windows 工作台。
 
-Please see the LICENSE file for information on how the source is licensed.
+OuseRDP 是基于 [iiordanov/remote-desktop-clients](https://github.com/iiordanov/remote-desktop-clients) 的 Android RDP 客户端 Fork，聚焦平板上的触摸、外接键盘和持续连接体验，由 [0use-TE](https://github.com/0use-TE) 维护。
 
-# Android App Store Links
+[项目网站](https://0use.net/remote-desktop-clients/) · [使用与构建](#开始使用) · [上游文档](docs/UPSTREAM.md)
 
-bVNC is a VNC client. It's released as a donation version at [bVNC Pro](https://play.google.com/store/apps/details?id=com.iiordanov.bVNC),
-and as a free version at [bVNC](https://play.google.com/store/apps/details?id=com.iiordanov.freebVNC)
-and [IzzyOnDroid](https://apt.izzysoft.de/packages/com.iiordanov.freebVNC)
+![OuseRDP 电脑列表，使用演示连接信息](site/assets/connections.png)
 
-aRDP is a RDP client. It's released as a donation version at, [aRDP Pro](https://play.google.com/store/apps/details?id=com.iiordanov.aRDP)
-and as a free version at [aRDP](https://play.google.com/store/apps/details?id=com.iiordanov.freeaRDP)
-and [IzzyOnDroid](https://apt.izzysoft.de/packages/com.iiordanov.freeaRDP)
+## 为平板使用做的改进
 
-aSPICE is a SPICE Protocol client. It's available as a donation version at [aSPICE Pro](https://play.google.com/store/apps/details?id=com.iiordanov.aSPICE),
-and as a free version at [aSPICE](https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE)
+- **简单连接**：添加电脑、保存连接配置，点选进入远程桌面。
+- **原生触摸**：通过 RDP 触摸通道传递多点触摸，服务端支持时可使用触摸应用；通道未连接时使用兼容操作。
+- **键盘路由**：捕获 Win、Alt+Tab 等 Windows 快捷键；Ctrl+Alt+F12 在 Windows 与安卓键盘之间切换，安卓模式显示大字提示。
+- **后台保持连接**：切换安卓应用时，通过前台服务维持会话，并提供连接通知。
+- **断线恢复**：已连接会话中断后自动重试，网络恢复后继续尝试，也能手动重连。
+- **显示与滚动**：调整远程分辨率、Windows 显示缩放和滚动灵敏度。
 
-Opaque is an oVirt, RHEV, and Proxmox client available at [Opaque](https://play.google.com/store/apps/details?id=com.undatech.opaque)
+![OuseRDP 设置](site/assets/settings.png)
 
-The donation versions are also available on Amazon App Store at
-[bVNC](https://www.amazon.ca/Unda-Tech-VNC-Pro-Viewer/dp/B00OWZYE1A), [aRDP](https://www.amazon.ca/Unda-Tech-RDP-Pro-Client/dp/B00OX1RBAO), [aSPICE](https://www.amazon.ca/aSPICE-Pro-Secure-SPICE-Client/dp/B07B6K9BDB), [Opaque](https://www.amazon.ca/Opaque-oVirt-RHEV-Proxmox-Client/dp/B07HMTYT1L).
+## 开始使用
 
-## Apple App Store Links
+1. 在 Windows 电脑开启远程桌面，并确认账户具有远程登录权限。
+2. 让平板能够访问电脑的 RDP 地址，可使用局域网或自己的 VPN 网络。
+3. 在 OuseRDP 中点击“添加电脑”，填写地址和账户后连接。
+4. 使用外接键盘时，在安卓无障碍设置中启用“OuseRDP 键盘快捷键”。
 
-bVNC Pro is available at [bVNC Pro](https://apps.apple.com/app/bvnc-pro/id1506461202).
+默认键盘控制 Windows。按 **Ctrl+Alt+F12** 交给安卓，再按一次恢复；鼠标与触摸仍用于远程桌面。F1–F12 在部分联想键盘上仍可能触发系统功能，实机适配尚未完成。
 
-aRDP is available at [aRDP Pro](https://apps.apple.com/app/ardp-pro/id1620745523)
+Windows 需要支持作为 RDP 服务端的版本，例如专业版或企业版。后台服务与自动重连的行为见 [BACKGROUND.md](OuseRDP-app/BACKGROUND.md)，触摸见 [TOUCH.md](OuseRDP-app/TOUCH.md)，键盘见 [KEYBOARD.md](OuseRDP-app/KEYBOARD.md)。
 
-aSPICE Pro is available at [aSPICE Pro](https://apps.apple.com/app/aspice-pro/id1560593107).
+## 构建
 
-Find bVNC Pro, aRDP Pro, and aSPICE Pro for MacOS and iOS source code
-[here](https://gitlab.com/iiordanov/remote-desktop-clients-ios)
+当前应用版本为 **0.1.11**。使用 JDK 21、Android SDK，以及上游构建流程准备的 FreeRDP 和其他原生依赖；完整依赖准备步骤保留在 [上游构建文档](docs/UPSTREAM.md)。本仓库不包含完整原生依赖产物。
 
-# Links to Pro APKs
+Windows 上先设置 `JAVA_HOME` 与 `ANDROID_HOME`，再构建触摸桥接库和 APK：
 
-You can always get the latest Pro versions by supporting us as a Patreon member and keeping your membership active!
-
-[bVNC Pro](https://www.patreon.com/posts/113067871)
-[aRDP Pro](https://www.patreon.com/posts/113067997)
-[aSPICE Pro](https://www.patreon.com/posts/113067946)
-[Opaque](https://www.patreon.com/posts/113067670)
-
-# Releases
-
-You can find all free Android APK files [here](https://github.com/iiordanov/remote-desktop-clients/releases)
-
-# Building
-
-There are different ways to build the applications depending on OS and whether you are using
-pre-built libraries, or building them from scratch.
-
-## On Linux and WSL2
-
-These instructions should work on Ubuntu 18.04, 20.04, and Windows Subsystem for Linux 2.
-Builds are likely to also work on MacOS, feedback is welcome.
-
-Pick one of I-a, I-b, or I-c below, then move onto II.
-
-### I-a With Prebuilt Libraries
-
-Building the projects with pre-built dependencies.
-
-        ./download-prebuilt-dependencies.sh
-        ./bVNC/prepare_project.sh --skip-build libs nopath
-
-### I-b From Scratch with Docker
-
-Make sure you're running the commands below from the root of the project.
-
-Ensure ANDROID_SDK is set to the path to your SDK.
-
-First install docker-compose-v2 package. On Ubuntu/Debian:
-
-```bash
-apt install docker-compose-v2
+```powershell
+.\remoteClientLib\src\main\cpp\build-touch.ps1 -NdkRoot C:\path\to\android-ndk
+.\gradlew.bat :bVNC:testDebugUnitTest :OuseRDP-app:testDebugUnitTest :OuseRDP-app:assembleDebug
 ```
 
-Then, run:
+APK 输出位于 `OuseRDP-app/build/outputs/apk/debug/`。原生桥接库需要与 FreeRDP 预编译库的版本、ABI 保持一致。
 
-```bash
-echo "USER_UID=$(id -u)" > docker/.env
-echo "USER_GID=$(id -g)" >> docker/.env
-echo "CURRENT_WORKING_DIR=$(pwd)" >> docker/.env
-docker compose -f docker/docker-compose.yml up
-```
+## 网站
 
-### I-c From Scratch
+介绍页源码位于 [`site/`](site/)。[`pages.yml`](.github/workflows/pages.yml) 使用 GitHub Actions 发布 GitHub Pages；推送网站文件后自动更新，也可手动运行。
 
-Building from scratch and working in Android Studio.
+## 来源与许可
 
-  - Install some packages. On Ubuntu:
-        apt install gnome-common gobject-introspection nasm gtk-doc-tools python-is-python3
+本 Fork 基于 Iordan Iordanov 及其他贡献者维护的 remote-desktop-clients，保留原有历史、版权与许可声明。OuseRDP 的界面、输入和连接管理改动由本 Fork 维护，相关修改记录见 Git 历史。
 
-  - On Linux, install Android Studio
-  - Install Android SDK from Tools -> SDK Tools
-  - Install Android SDK command-line tools and CMake from the SDK Tools tab
-  - Ensure that the path to ANDROID_SDK is ${HOME}/Android/Sdk/ and correct below if necessary
-
-  - To build the projects
-
-    - If building a non-custom client, set PROJECT to libs. For a custom VNC client, set PROJECT to a string
-      that stars with Custom and contains Vnc, i.e. `CustomYourVncClient` (see III below for details).
-
-    - Set the environment variables ANDROID_SDK to your SDK installation. The scripts will install the NDK automatically.
-
-    - Example:
-
-              export PROJECT=libs # or CustomSomethingOrOther
-              export ANDROID_SDK=${HOME}/Android/Sdk
-              export PATH=$PATH:${ANDROID_SDK}/platform-tools/
-              export PATH=$PATH:${ANDROID_SDK}/tools
-
-    - Accept all licenses (repeat if you see an error during build)
-
-              ${ANDROID_SDK}/cmdline-tools/bin/sdkmanager --licenses
-
-    - Then, run the build script which takes hours to run. E.g.:
-
-              ./bVNC/prepare_project.sh $PROJECT $ANDROID_SDK
-
-    - Switch to Android Studio, select the launch configuration you want to run, and run it on an emulator or device.
-
-    - If using an emulator, choose x86_64 as the architecture to avoid "has text relocations" errors loading gstreamer on Android.
-
-## On Windows with Git Bash
-
-These instructions are for Windows without WSL2 installed. For now, only pre-build dependencies are
-supported in this configuration.
-
-- First [download and install git from here](https://git-scm.com/downloads)
-- Then, start Git Bash, clone this project, cd into the project root directory and run:
-```bash
-./download-prebuilt-dependencies.sh
-```
-- Start Android Studio and open the project directory
-- Click File->Sync Project with Gradle Files
-- If Android Studio reports any missing android versions (such as `android-28`, for instance),
-find and start SDK Manager and ensure any missing Android versions are installed. As of today,
-the required versions are `android-28`, `android-29`, and `android-30`, but in future other versions
-will need to be installed if Android Studio shows an error.
-
-
-## II Importing projects into Android Studio
-
-This should be as simple as selecting "Open an existing Android Studio project" on the
-Welcome screen, browsing to the remote-desktop-clients directory and selecting it.
-
-  - One final tweak is necessary to the (external) freeRDPCore project before
-    the project can build. Double-click "Gradle Scripts" on the left, and
-    open build.gradle (Module freeRDPCore). Change minSdkVersion to 11.
-
-  - Build -> Make Project should now work.
-
-## Custom Certificate Authority
-
-You can add custom CAs for aSPICE and Opaque in remoteClientLib/certificate_authorities/. They will be merged with the
-ca-bundle.crt provided to the app to validate your self-signed server certs if you have any.
-
-## Generating Keyboard Layouts for aSPICE and Opaque
-
-The directory `bVNC/layouts` contains a utiliy `convert.py` that can be used to generate new layouts for the desktop clients.
-
-```bash
-sudo apt install qemu-keymaps
-cd bVNC/layouts
-python3 ./convert.py
-```
-
-If you would like to add a layout, the best way to do so would be to create a file with the correct format in
-`/usr/share/qemu/keymaps/`. Ideally, you should submit this file to the qemu project so everybody would be able to benefit
-from the new layout.
-
-
-## III Building "Custom" VNC clients
-
-It is possible to programmatically build additional customized clients based on the VNC client contained in this project
-without altering any of the source code of the project.
-
-- Pick a unique identifier for your app. It will become part of the
-  (application ID)[https://developer.android.com/studio/build/application-id] of the app. For example,
-  say you pick YourVncClient. The application ID will be com.iiordanov.YourVncClient.
-
-- Place a configuration file in yaml format (note - with filename matching your resulting application ID) at
-  `bVNC/src/main/assets/com.iiordanov.YourVncClient.yaml`
-
-- Use the file `custom_vnc_client.yaml-EXAMPLE` as a starting point. The numbers after each field are one of
-  View.INVISIBLE or View.GONE and it controls whether the field is invisible or gone in the customized interface.
-
-- See [https://developer.android.com/reference/android/view/View.html#GONE] for the numeric value of View.GONE
-  and [https://developer.android.com/reference/android/view/View.html#INVISIBLE] for the numberic value of View.INVISIBLE.
-
-- Place an icon at `CustomVnc-app/src/main/res/drawable/icon_of_the_custom_app.png`.
-
-- Edit `gradle.properties` and set CUSTOM_VNC_APP_NAME to `Name Of The Custom App` and CUSTOM_VNC_APP_ICON to `icon_of_the_custom_app`
-
-- Follow the build procedure in I-a, I-b, or I-c above, but with the PROJECT environment variable set to anything that starts with
-  `Custom` and has `Vnc` in its name. For instance, if you set PROJECT to `CustomYourVncClient`. The `bVNC/prepare_project.sh` script
-  will strip "Custom" from that identifier and once the project is built will be com.iiordanov.YourVncClient.
-
-## Bugs
-
-Please post any bugs you find at the GitHub issue tracker:
-
-https://github.com/iiordanov/remote-desktop-clients/issues
-
-## Support Forum
-
-Questions and general discussion should be posted at the following forum:
-
-https://groups.google.com/forum/#!forum/bvnc-ardp-aspice-opaque-remote-desktop-clients
+整体遵循 [GPL v3](LICENSE)。仓库中部分第三方代码另有 MPL、LGPL 等许可，继续适用其原始声明，详见 [COPYRIGHT-bVNC](COPYRIGHT-bVNC) 及各模块许可文件。
