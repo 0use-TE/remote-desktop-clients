@@ -39,9 +39,17 @@ public class RemoteRdpPointerTest {
         pointer.sendWheelSteps(0, 0);
         pointer.sendWheelSteps(2, 1);
         pointer.sendWheelSteps(-1, 0);
+        pointer.sendWheelDelta(30, 1);
+        pointer.sendWheelDelta(-30, 0);
+        pointer.sendWheelDelta(0, 0);
+        pointer.sendWheelDelta(300, 0);
 
         verify(rdp, times(2)).writeWheelEvent(400, 300, 5, 0x0278);
         verify(rdp).writeWheelEvent(400, 300, 4, 0x0388);
+        verify(rdp).writeWheelEvent(400, 300, 5, 0x021e);
+        verify(rdp).writeWheelEvent(400, 300, 4, 0x03e2);
+        verify(rdp).writeWheelEvent(400, 300, 4, 0x02ff);
+        verify(rdp).writeWheelEvent(400, 300, 4, 0x022d);
         verifyNoMoreInteractions(rdp);
         verifyNoInteractions(canvas);
         assertEquals(400, pointer.getX());

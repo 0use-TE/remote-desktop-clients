@@ -82,6 +82,17 @@ public class RemoteRdpPointer extends RemotePointer {
         }
     }
 
+    void sendWheelDelta(int delta, int metaState) {
+        int combinedMetaState = metaState | remoteInput.getKeyboard().getMetaState();
+        while (delta != 0) {
+            // RDP wheel rotation is a signed nine-bit value; no MOVE/button flags.
+            int chunk = Math.max(-255, Math.min(255, delta));
+            int flags = POINTER_FLAGS_WHEEL | (chunk & 0x01ff);
+            rdp.writeWheelEvent(pointerX, pointerY, combinedMetaState, flags);
+            delta -= chunk;
+        }
+    }
+
     @Override
     public void scrollLeft(int x, int y, int metaState) {
         // TODO: Protocol does not support scrolling left/right yet.

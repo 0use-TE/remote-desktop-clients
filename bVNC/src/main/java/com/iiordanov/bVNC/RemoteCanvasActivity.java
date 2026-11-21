@@ -1268,10 +1268,12 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     protected void onDestroy() {
         super.onDestroy();
         Log.i(TAG, "onDestroy called.");
-        if (remoteConnection != null)
+        if (remoteConnection != null && !keepConnectionAfterActivityDestroyed())
             remoteConnection.closeConnection();
         System.gc();
     }
+
+    protected boolean keepConnectionAfterActivityDestroyed() { return false; }
 
     public void showPanningState(boolean showLonger) {
         if (showLonger) {
@@ -1477,6 +1479,12 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (usesCompactSessionUi() && WindowsKeyCaptureService.isAndroidKeyboardMode(this)
+                && event.isFromSource(android.view.InputDevice.SOURCE_KEYBOARD)) {
+            // System shortcuts have already had their chance to run. Do not let
+            // the canvas forward the remaining local keyboard events to RDP.
+            return true;
+        }
         int action = event.getAction();
         if (usesCompactSessionUi() && canSendCapturedKeys()
                 && (action == KeyEvent.ACTION_DOWN || action == KeyEvent.ACTION_UP)
@@ -1495,6 +1503,8 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     protected boolean capturesExtendedShortcuts() {
         return false;
     }
+
+    protected void onKeyboardRoutingChanged(boolean androidMode) {}
 
     protected void showRemoteWindowsKeyboard() {
         if (canSendCapturedKeys()) {

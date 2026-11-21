@@ -8,13 +8,20 @@ android {
         applicationId 'io.github.ouse.ouserdp'
         minSdkVersion project.getProperties().get('SDK_VERSION')
         targetSdkVersion targetApi
-        versionCode 7
-        versionName '0.1.6'
+        versionCode 12
+        versionName '0.1.11'
+        testInstrumentationRunner 'io.github.ouse.ouserdp.TouchSmokeInstrumentation'
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
+    }
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            all { jvmArgs '--add-exports=java.base/jdk.internal.access=ALL-UNNAMED' }
+        }
     }
 
     splits {
@@ -37,7 +44,11 @@ dependencies {
     implementation project(':bVNC')
     implementation project(':common')
     implementation project(':remoteClientLib')
+    implementation project(':remoteClientLib:jni:libs:deps:FreeRDP:client:Android:Studio:freeRDPCore')
     implementation (name: 'android-database-sqlcipher-4.5.4', ext: 'aar')
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.preference:preference-ktx:1.2.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.17'
+    testImplementation 'org.mockito:mockito-core:5.24.0'
 }

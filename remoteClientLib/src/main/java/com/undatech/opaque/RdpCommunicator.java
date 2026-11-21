@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 
 import com.freerdp.freerdpcore.application.GlobalApp;
 import com.freerdp.freerdpcore.application.SessionState;
@@ -41,12 +43,12 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     private final static int VK_EXT_KEY = 0x00000100;
     private final RdpCommunicator myself;
     private final Viewable viewable;
-    private SessionState session;
+    private volatile SessionState session;
     private final BookmarkBase bookmark;
     // Keeps track of libFreeRDP instance
     private final GlobalApp freeRdpApp;
     private final Context context;
-    private boolean isInNormalProtocol = false;
+    private volatile boolean isInNormalProtocol = false;
     // This variable indicates whether or not the user has accepted an untrusted
     // security certificate. Used to control progress while the dialog asking the user
     // to confirm the authenticity of a certificate is displayed.
@@ -54,7 +56,97 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     private boolean reattemptWithoutCredentials = true;
     private boolean authenticationAttempted = false;
     private boolean gatewayAuthenticationAttempted = false;
-    private boolean disconnectRequested = false;
+    private volatile boolean disconnectRequested = false;
+    public enum ConnectionState { CONNECTING, CONNECTED, RECONNECTING, WAITING_FOR_NETWORK, RETRY_FAILED, DISCONNECTED }
+    public interface ConnectionStateListener { void changed(ConnectionState state, int attempt, int delayMillis); }
+    private volatile ConnectionStateListener stateListener;
+    private volatile ConnectionState connectionState = ConnectionState.CONNECTING;
+    private final ReconnectBackoff reconnectBackoff = new ReconnectBackoff();
+    private final ExecutorService recoveryExecutor = Executors.newSingleThreadExecutor();
+    private Runnable pendingReconnect;
+    private volatile boolean recoveryInFlight;
+    private boolean failureReported;
+    private boolean isOuse() { return "io.github.ouse.ouserdp".equals(context.getPackageName()); }
+    private boolean autoReconnect() { return isOuse() && context.getSharedPreferences("generalSettings", Context.MODE_PRIVATE).getBoolean("ouseAutoReconnect", true); }
+
+    public void setConnectionStateListener(ConnectionStateListener listener) {
+        stateListener = listener;
+        if (listener != null) handler.post(() -> { if (stateListener == listener) listener.changed(connectionState, reconnectBackoff.attempts(), 0); });
+    }
+    private void publishState(ConnectionState state, int delay) {
+        connectionState = state;
+        handler.post(() -> { ConnectionStateListener listener = stateListener; if (listener != null) listener.changed(state, reconnectBackoff.attempts(), delay); });
+    }
+    private boolean current(long instance) { return session != null && session.getInstance() == instance; }
+    private boolean networkAvailable() {
+        ConnectivityManager manager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo info = manager == null ? null : manager.getActiveNetworkInfo();
+        return info != null && info.isConnected();
+    }
+    public void retryConnectionNow() {
+        handler.post(() -> {
+            if (disconnectRequested || isInNormalProtocol || recoveryInFlight || connectionState == ConnectionState.CONNECTING) return;
+            if (pendingReconnect != null) handler.removeCallbacks(pendingReconnect);
+            pendingReconnect = null;
+            reconnectBackoff.restart();
+            scheduleRecovery(0);
+        });
+    }
+    public void onNetworkAvailable() {
+        handler.post(() -> {
+            if (connectionState == ConnectionState.WAITING_FOR_NETWORK && pendingReconnect != null) {
+                handler.removeCallbacks(pendingReconnect);
+                handler.post(pendingReconnect);
+            }
+        });
+    }
+    private void scheduleRecovery(int delay) {
+        if (disconnectRequested || pendingReconnect != null) return;
+        publishState(ConnectionState.RECONNECTING, delay);
+        pendingReconnect = new Runnable() {
+            @Override public void run() {
+                if (disconnectRequested) { pendingReconnect = null; return; }
+                if (!networkAvailable()) {
+                    publishState(ConnectionState.WAITING_FOR_NETWORK, 0);
+                    handler.postDelayed(this, 5_000);
+                    return;
+                }
+                pendingReconnect = null;
+                recoveryInFlight = true;
+                publishState(ConnectionState.RECONNECTING, 0);
+                recoveryExecutor.execute(() -> {
+                    try {
+                        synchronized (RdpCommunicator.this) {
+                            if (disconnectRequested) return;
+                            long previous = session.getInstance();
+                            NativeRdpTouch.detach(previous);
+                            GlobalApp.freeSession(previous);
+                            session = GlobalApp.createSession(bookmark, context);
+                            session.setUIEventListener(RdpCommunicator.this);
+                            LibFreeRDP.setEventListener(RdpCommunicator.this);
+                            receivedFirstGraphicsFrame = false;
+                            metaState = 0;
+                            failureReported = false;
+                            reattemptWithoutCredentials = false;
+                            authenticationAttempted = false;
+                            connect();
+                        }
+                    } catch (Throwable error) {
+                        recoveryInFlight = false;
+                        Log.e(TAG, "RDP recovery failed", error);
+                        handler.post(() -> scheduleNextRecovery());
+                    }
+                });
+            }
+        };
+        handler.postDelayed(pendingReconnect, delay);
+    }
+    private void scheduleNextRecovery() {
+        if (disconnectRequested || recoveryInFlight || pendingReconnect != null) return;
+        int delay = reconnectBackoff.nextDelayMillis();
+        if (delay < 0) publishState(ConnectionState.RETRY_FAILED, 0);
+        else scheduleRecovery(delay);
+    }
     private final String username, password, domain;
 
     private final Connection connection;
@@ -103,7 +195,9 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
             Log.i(TAG, "Initializing sessionMap in GlobalApp");
             Field sessionMap = cls.getDeclaredField("sessionMap");
             sessionMap.setAccessible(true);
-            sessionMap.set(this.freeRdpApp, Collections.synchronizedMap(new HashMap<Long, SessionState>()));
+            if (sessionMap.get(null) == null) {
+                sessionMap.set(null, Collections.synchronizedMap(new HashMap<Long, SessionState>()));
+            }
         } catch (NoSuchFieldException e) {
             Log.e(TAG, "There is no longer a sessionMap field in GlobalApp");
         } catch (IllegalAccessException e) {
@@ -138,8 +232,8 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
 
     @Override
-    public void writeClientCutText(String text) {
-        LibFreeRDP.sendClipboardData(session.getInstance(), text);
+    public synchronized void writeClientCutText(String text) {
+        if (!disconnectRequested && isInNormalProtocol) LibFreeRDP.sendClipboardData(session.getInstance(), text);
     }
 
     @Override
@@ -208,9 +302,13 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        if (disconnectRequested) return;
         setIsInNormalProtocol(false);
         disconnectRequested = true;
+        reconnectBackoff.stop();
+        handler.post(() -> { if (pendingReconnect != null) handler.removeCallbacks(pendingReconnect); pendingReconnect = null; });
+        publishState(ConnectionState.DISCONNECTED, 0);
         long instance = session.getInstance();
         DisconnectThread d = new DisconnectThread(instance);
         d.start();
@@ -285,7 +383,12 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
 
     private void runMethodOnInputThread(Runnable runnable) {
-        inputExecutor.submit(runnable);
+        long instance = session.getInstance();
+        inputExecutor.submit(() -> {
+            synchronized (RdpCommunicator.this) {
+                if (!disconnectRequested && isInNormalProtocol && current(instance)) runnable.run();
+            }
+        });
     }
 
     private synchronized void sendUnicodeKey(int unicodeKey, boolean down) {
@@ -403,7 +506,26 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
 
     public void connect() {
+        if ("io.github.ouse.ouserdp".equals(context.getPackageName())) {
+            NativeRdpTouch.attach(session.getInstance());
+        }
         session.connect(context);
+    }
+
+    public boolean isNativeTouchReady() {
+        return isInNormalProtocol && session != null && NativeRdpTouch.ready(session.getInstance());
+    }
+
+    /** action: 0=begin, 1=update, 2=end. Preserve ordering with keyboard/mouse input. */
+    public void writeTouchEvent(int action, int id, int x, int y) {
+        long instance = session.getInstance();
+        runMethodOnInputThread(() -> NativeRdpTouch.send(instance, action, id, x, y));
+    }
+
+    public void cancelTouches() {
+        if (session == null) return;
+        long instance = session.getInstance();
+        runMethodOnInputThread(() -> NativeRdpTouch.cancel(instance));
     }
 
     @Override
@@ -418,20 +540,34 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     @Override
     public void OnConnectionSuccess(long instance) {
+        if (!current(instance) || disconnectRequested) return;
+        recoveryInFlight = false;
         Log.v(TAG, "OnConnectionSuccess");
         reattemptWithoutCredentials = false;
         authenticationAttempted = false;
         myself.setIsInNormalProtocol(true);
+        reconnectBackoff.connected();
+        publishState(ConnectionState.CONNECTED, 0);
     }
 
     @Override
     public void OnConnectionFailure(long instance) {
+        NativeRdpTouch.detach(instance);
+        if (!current(instance)) return;
         Log.v(TAG, "OnConnectionFailure");
         myself.setIsInNormalProtocol(false);
+        // FreeRDP emits either Failure or Disconnected as its terminal callback.
+        // Transport failures must enter the same recovery path as clean disconnects.
+        OnDisconnected(instance);
     }
 
     @Override
     public void OnDisconnecting(long instance) {
+        if (!current(instance) || disconnectRequested) return;
+        if (autoReconnect() && reconnectBackoff.connectedBefore()) {
+            isInNormalProtocol = false;
+            return; // The terminal Failure/Disconnected callback schedules one retry.
+        }
         Log.v(TAG, "OnDisconnecting, reattemptWithoutCredentials: " + reattemptWithoutCredentials +
                 ", authenticationAttempted: " + authenticationAttempted +
                 ", disconnectRequested: " + disconnectRequested +
@@ -460,6 +596,17 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     @Override
     public void OnDisconnected(long instance) {
+        NativeRdpTouch.detach(instance);
+        if (!current(instance) || disconnectRequested) return;
+        recoveryInFlight = false;
+        if (autoReconnect() && reconnectBackoff.connectedBefore()) {
+            isInNormalProtocol = false;
+            handler.post(this::scheduleNextRecovery);
+            return;
+        }
+        if (failureReported) return;
+        failureReported = true;
+        publishState(ConnectionState.DISCONNECTED, 0);
         Log.v(TAG, "OnDisconnected");
         if (!myself.isInNormalProtocol()) {
             Log.v(TAG, "Sending message: RDP_UNABLE_TO_CONNECT");
@@ -478,7 +625,13 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         if (settings.getWidth() != width || settings.getHeight() != height) {
             Log.i(TAG, "OnSettingsChanged width and height do not match saved values, saving and reconnecting");
             saveConnectionSettings(width, height, bpp);
-            handler.sendEmptyMessage(RemoteClientLibConstants.REINIT_SESSION);
+            if (isOuse()) {
+                // A server resize is not a new session. Opening a second connection can
+                // evict the first one and route its late errors into the new UI.
+                viewable.reallocateDrawable(width, height);
+            } else {
+                handler.sendEmptyMessage(RemoteClientLibConstants.REINIT_SESSION);
+            }
         } else {
             viewable.reallocateDrawable(width, height);
         }
@@ -614,7 +767,8 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
         public void run() {
             LibFreeRDP.disconnect(instance);
-            //LibFreeRDP.freeInstance(instance);
+            NativeRdpTouch.detach(instance);
+            GlobalApp.freeSession(instance);
         }
     }
 }

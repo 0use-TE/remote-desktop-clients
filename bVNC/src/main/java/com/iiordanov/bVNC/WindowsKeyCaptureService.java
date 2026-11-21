@@ -16,6 +16,7 @@ public final class WindowsKeyCaptureService extends AccessibilityService
     // The service callbacks and activity lifecycle both run on the main thread.
     private static final WindowsKeyCapture capture = new WindowsKeyCapture();
     private static RemoteCanvasActivity session;
+    private static java.lang.ref.WeakReference<RemoteCanvasActivity> modeOwner = new java.lang.ref.WeakReference<>(null);
 
     public static boolean isEnabled(Context context) {
         AccessibilityManager manager = (AccessibilityManager)
@@ -34,6 +35,10 @@ public final class WindowsKeyCaptureService extends AccessibilityService
         if (session != activity) {
             capture.releaseKeys(WindowsKeyCaptureService::sendKey);
             session = activity;
+            if (modeOwner.get() != activity) {
+                capture.useRemoteKeyboard();
+                modeOwner = new java.lang.ref.WeakReference<>(activity);
+            }
         }
     }
 
@@ -56,6 +61,10 @@ public final class WindowsKeyCaptureService extends AccessibilityService
         }
     }
 
+    public static boolean isAndroidKeyboardMode(RemoteCanvasActivity activity) {
+        return session == activity && capture.isAndroidKeyboardMode();
+    }
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
@@ -73,9 +82,14 @@ public final class WindowsKeyCaptureService extends AccessibilityService
         boolean physicalKeyboard = event.isFromSource(InputDevice.SOURCE_KEYBOARD)
                 && device != null && !device.isVirtual()
                 && device.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
-        return capture.onKeyEvent(event, sessionActive && physicalKeyboard,
+        boolean previousMode = capture.isAndroidKeyboardMode();
+        boolean handled = capture.onKeyEvent(event, sessionActive && physicalKeyboard,
                 session != null && session.capturesExtendedShortcuts(),
                 WindowsKeyCaptureService::sendKey);
+        if (session != null && previousMode != capture.isAndroidKeyboardMode()) {
+            session.onKeyboardRoutingChanged(capture.isAndroidKeyboardMode());
+        }
+        return handled;
     }
 
     @Override
@@ -104,6 +118,6 @@ public final class WindowsKeyCaptureService extends AccessibilityService
 
     @Override
     public void onInputDeviceRemoved(int deviceId) {
-        capture.releaseKeys(WindowsKeyCaptureService::sendKey);
+        capture.inputDeviceRemoved(deviceId, WindowsKeyCaptureService::sendKey);
     }
 }

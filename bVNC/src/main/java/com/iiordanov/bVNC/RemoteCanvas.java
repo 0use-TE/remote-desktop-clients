@@ -66,6 +66,16 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
 
     // Variable indicating that we are currently scrolling in simulated touchpad mode.
     public boolean cursorBeingMoved = false;
+    private boolean nativeTouchMode;
+
+    public boolean isNativeTouchMode() { return nativeTouchMode; }
+
+    public void setNativeTouchMode(boolean enabled) {
+        if (nativeTouchMode != enabled) {
+            nativeTouchMode = enabled;
+            invalidate();
+        }
+    }
 
     // Connection parameters
     public Connection connection;

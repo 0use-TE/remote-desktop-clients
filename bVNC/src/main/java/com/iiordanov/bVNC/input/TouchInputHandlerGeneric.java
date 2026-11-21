@@ -330,6 +330,10 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
         if (steps == 0) {
             return;
         }
+        if (useControlledScrolling && remoteInput.getPointer() instanceof RemoteRdpPointer pointer) {
+            pointer.sendWheelDelta(steps, meta);
+            return;
+        }
         scrollUp = steps > 0;
         scrollDown = steps < 0;
         scrollLeft = false;
@@ -633,6 +637,13 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
 
             // If in swiping mode, indicate a swipe at regular intervals.
             if (inSwiping) {
+                if (useControlledScrolling) {
+                    int delta = touchSteps.take((yCurrentFocus - yPreviousFocus) / baseSwipeDist);
+                    xPreviousFocus = xCurrentFocus;
+                    yPreviousFocus = yCurrentFocus;
+                    sendVerticalScroll(delta, (int) xInitialFocus, (int) yInitialFocus, 0);
+                    return true;
+                }
                 scrollDown = false;
                 scrollUp = false;
                 scrollRight = false;

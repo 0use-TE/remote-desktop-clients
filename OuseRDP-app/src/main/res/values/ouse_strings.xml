@@ -24,7 +24,7 @@
     <string name="ouse_remove">Remove</string>
     <string name="ouse_remove_computer">Remove %1$s from saved computers?</string>
     <string name="ouse_keyboard_capture">OuseRDP keyboard shortcuts</string>
-    <string name="ouse_keyboard_capture_detail">Sends Win shortcuts, Alt+Tab and F1–F24 to Windows while a connected OuseRDP session has focus.</string>
+    <string name="ouse_keyboard_capture_detail">Sends Win shortcuts, Alt+Tab and F1–F24 to Windows while a connected OuseRDP session has focus. Ctrl+Alt+F12 switches the keyboard between Windows and Android.</string>
     <string name="ouse_settings">Settings</string>
     <string name="ouse_back">Back</string>
     <string name="ouse_display_defaults">Display · applies on next connection</string>

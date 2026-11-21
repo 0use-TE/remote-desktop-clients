@@ -149,7 +149,9 @@ class UltraCompactBitmapData extends AbstractBitmapData {
             try {
                 synchronized (this) {
                     canvas.drawBitmap(data.mbitmap, 0.0f, 0.0f, _defaultPaint);
-                    canvas.drawBitmap(softCursor, cursorRect.left, cursorRect.top, _defaultPaint);
+                    if (!(vncCanvas instanceof RemoteCanvas remoteCanvas) || !remoteCanvas.isNativeTouchMode()) {
+                        canvas.drawBitmap(softCursor, cursorRect.left, cursorRect.top, _defaultPaint);
+                    }
                 }
             } catch (Throwable e) {
             }

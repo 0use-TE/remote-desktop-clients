@@ -1,6 +1,6 @@
 package com.iiordanov.bVNC.input;
 
-/** Converts fractional movement to wheel notches without queuing oversized bursts. */
+/** Converts wheel notches to high-resolution RDP units (120 units per notch). */
 final class ScrollSteps {
     private float fraction;
 
@@ -11,9 +11,9 @@ final class ScrollSteps {
         if (fraction * movement < 0) {
             reset();
         }
-        float total = fraction + movement;
+        float total = fraction + movement * 120f;
         fraction = total % 1f;
-        return Math.max(-2, Math.min(2, (int) total));
+        return (int) Math.max(-240f, Math.min(240f, total));
     }
 
     void reset() {

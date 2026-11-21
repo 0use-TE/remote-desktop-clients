@@ -23,7 +23,7 @@
     <string name="ouse_remove">移除</string>
     <string name="ouse_remove_computer">从已保存的电脑中移除 %1$s？</string>
     <string name="ouse_keyboard_capture">OuseRDP 键盘快捷键</string>
-    <string name="ouse_keyboard_capture_detail">当已连接的 OuseRDP 会话获得焦点时，将 Win 快捷键、Alt+Tab 和 F1–F24 发送到 Windows。</string>
+    <string name="ouse_keyboard_capture_detail">当已连接的 OuseRDP 会话获得焦点时，将 Win 快捷键、Alt+Tab 和 F1–F24 发送到 Windows。Ctrl+Alt+F12 切换 Windows / 安卓键盘。</string>
     <string name="ouse_settings">设置</string>
     <string name="ouse_back">返回</string>
     <string name="ouse_display_defaults">显示 · 下次连接时生效</string>

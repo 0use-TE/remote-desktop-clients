@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory android:title="连接保持">
+        <SwitchPreferenceCompat android:key="ouseBackgroundConnection" android:title="后台保持连接" android:summary="连接时显示常驻通知，切换应用后继续运行；会增加耗电" android:defaultValue="true" />
+        <SwitchPreferenceCompat android:key="ouseAutoReconnect" android:title="断线自动重连" android:summary="已连接的会话中断后自动重试，也可在会话菜单中手动重连" android:defaultValue="true" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="@string/ouse_display_defaults">
         <ListPreference
             android:key="ouseMaxDesktopEdge"

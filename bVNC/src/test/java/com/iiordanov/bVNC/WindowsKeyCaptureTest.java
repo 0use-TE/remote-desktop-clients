@@ -45,6 +45,101 @@ public class WindowsKeyCaptureTest {
     private final List<KeyEvent> sent = new ArrayList<>();
 
     @Test
+    public void f12TogglesBothWaysWithoutLeakingModifiersOrRepeating() {
+        int chord = KeyEvent.META_CTRL_ON | META_ALT_ON;
+        toggleDown(chord);
+        assertTrue(capture.isAndroidKeyboardMode());
+        assertEquals(4, sent.size());
+        assertEquals(ACTION_UP, sent.get(2).getAction());
+        assertEquals(ACTION_UP, sent.get(3).getAction());
+        assertTrue(capture.onKeyEvent(new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_F12, 4, chord, 1, 0),
+                true, true, sent::add));
+        assertTrue(capture.isAndroidKeyboardMode());
+        toggleUp(chord);
+        assertFalse(key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_ALT_ON, true, true));
+        assertFalse(key(ACTION_DOWN, KEYCODE_TAB, META_ALT_ON, true, true));
+        assertFalse(key(ACTION_UP, KEYCODE_TAB, META_ALT_ON, true, true));
+        assertFalse(key(ACTION_UP, KEYCODE_ALT_LEFT, 0, true, true));
+        assertFalse(key(ACTION_DOWN, KEYCODE_META_LEFT, META_META_ON, true, true));
+        assertFalse(key(ACTION_UP, KEYCODE_META_LEFT, 0, true, true));
+        assertEquals(4, sent.size());
+        toggleDown(chord);
+        assertFalse(capture.isAndroidKeyboardMode());
+        toggleUp(chord);
+        assertEquals(4, sent.size());
+        assertTrue(key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_TAB, META_ALT_ON, true, true));
+        assertEquals(6, sent.size());
+    }
+
+    @Test
+    public void ctrlAltTabAndAltWinTabAreOrdinaryWindowsChordsAgain() {
+        int chord = KeyEvent.META_CTRL_ON | META_ALT_ON;
+        key(ACTION_DOWN, KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.META_CTRL_ON, true, true);
+        key(ACTION_DOWN, KEYCODE_ALT_LEFT, chord, true, true);
+        assertTrue(key(ACTION_DOWN, KEYCODE_TAB, chord, true, true));
+        assertEquals(KEYCODE_TAB, sent.get(2).getKeyCode());
+        assertFalse(capture.isAndroidKeyboardMode());
+        key(ACTION_UP, KEYCODE_TAB, chord, true, true);
+        key(ACTION_UP, KEYCODE_ALT_LEFT, KeyEvent.META_CTRL_ON, true, true);
+        key(ACTION_UP, KeyEvent.KEYCODE_CTRL_LEFT, 0, true, true);
+        key(ACTION_DOWN, KEYCODE_META_LEFT, META_META_ON, true, true);
+        key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_META_ON | META_ALT_ON, true, true);
+        assertTrue(key(ACTION_DOWN, KEYCODE_TAB, META_META_ON | META_ALT_ON, true, true));
+        assertEquals(KEYCODE_TAB, sent.get(sent.size()-1).getKeyCode());
+        assertFalse(capture.isAndroidKeyboardMode());
+    }
+
+    @Test
+    public void toggleDoesNotActivateOutsideSessionOrWithExtraModifiers() {
+        int chord = KeyEvent.META_CTRL_ON | META_ALT_ON;
+        assertFalse(key(ACTION_DOWN, KEYCODE_F12, chord, false, true));
+        assertFalse(key(ACTION_DOWN, KEYCODE_F12, chord, true, false));
+        assertTrue(key(ACTION_DOWN, KEYCODE_F12, chord | META_SHIFT_ON, true, true));
+        assertFalse(capture.isAndroidKeyboardMode());
+    }
+
+    @Test
+    public void disconnectingKeyboardDoesNotLeaveToggleChordStuck() {
+        int chord = KeyEvent.META_CTRL_ON | META_ALT_ON;
+        toggleDown(chord);
+        capture.inputDeviceRemoved(1, sent::add);
+        toggleDown(chord);
+        assertFalse(capture.isAndroidKeyboardMode());
+        toggleUp(chord);
+        assertTrue(key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_ALT_ON, true, true));
+    }
+
+    @Test
+    public void oemF12ScanCodeCanRestoreRemoteModeAndNewSessionDefaultsRemote() {
+        int chord = KeyEvent.META_CTRL_ON | META_ALT_ON;
+        toggleDown(chord);
+        toggleUp(chord);
+        key(ACTION_DOWN, KeyEvent.KEYCODE_CTRL_RIGHT, KeyEvent.META_CTRL_ON, true, true);
+        key(ACTION_DOWN, KeyEvent.KEYCODE_ALT_RIGHT, chord, true, true);
+        KeyEvent oem = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_VOLUME_DOWN, 0, chord, 1, 88);
+        assertTrue(capture.onKeyEvent(oem, true, true, sent::add));
+        assertFalse(capture.isAndroidKeyboardMode());
+        capture.reset();
+        toggleDown(chord);
+        assertTrue(capture.isAndroidKeyboardMode());
+        capture.useRemoteKeyboard();
+        assertFalse(capture.isAndroidKeyboardMode());
+    }
+
+    private void toggleDown(int chord) {
+        key(ACTION_DOWN, KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.META_CTRL_ON, true, true);
+        key(ACTION_DOWN, KEYCODE_ALT_LEFT, chord, true, true);
+        assertTrue(key(ACTION_DOWN, KEYCODE_F12, chord, true, true));
+    }
+
+    private void toggleUp(int chord) {
+        assertTrue(key(ACTION_UP, KEYCODE_F12, chord, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_ALT_LEFT, KeyEvent.META_CTRL_ON, true, true));
+        assertTrue(key(ACTION_UP, KeyEvent.KEYCODE_CTRL_LEFT, 0, true, true));
+    }
+
+    @Test
     public void capturesBothSidesAndKeepsChordReleaseAfterWindowsKeyUp() {
         assertTrue(key(ACTION_DOWN, KEYCODE_META_RIGHT, META_META_ON, true));
         assertTrue(key(ACTION_DOWN, KEYCODE_E, META_META_ON, true));

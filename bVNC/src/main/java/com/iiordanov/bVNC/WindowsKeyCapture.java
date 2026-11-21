@@ -17,11 +17,46 @@ final class WindowsKeyCapture {
 
     private final Map<Pair<Integer, Integer>, KeyEvent> pressed = new LinkedHashMap<>();
     private final Set<Pair<Integer, Integer>> awaitingRelease = new HashSet<>();
+    private final Set<Integer> localShortcutDevices = new HashSet<>();
+    private boolean androidKeyboardMode;
+    private final Set<Pair<Integer, Integer>> physicalModifiers = new HashSet<>();
 
     boolean onKeyEvent(KeyEvent event, boolean canStart, boolean captureExtendedShortcuts, KeySender sender) {
         int device = event.getDeviceId();
-        int code = captureExtendedShortcuts ? resolveDesktopKey(event) : event.getKeyCode();
+        int code = captureExtendedShortcuts || localShortcutDevices.contains(device)
+                ? resolveDesktopKey(event) : event.getKeyCode();
         Pair<Integer, Integer> key = Pair.create(device, code);
+        if (code == KeyEvent.KEYCODE_CTRL_LEFT || code == KeyEvent.KEYCODE_CTRL_RIGHT
+                || code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) physicalModifiers.add(key);
+            else if (event.getAction() == KeyEvent.ACTION_UP) physicalModifiers.remove(key);
+        }
+        // Finish consuming the mode-switch chord even after Android takes focus away.
+        // No partially held modifiers may reach Windows when the session regains focus.
+        if (localShortcutDevices.contains(device)) {
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                awaitingRelease.remove(key);
+                if (awaitingRelease.stream().noneMatch(held -> held.first == device)) {
+                    localShortcutDevices.remove(device);
+                }
+            } else if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                awaitingRelease.add(key);
+            }
+            return true;
+        }
+        if (canStart && captureExtendedShortcuts && event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getRepeatCount() == 0 && code == KeyEvent.KEYCODE_F12
+                && event.isCtrlPressed() && event.isAltPressed()
+                && !event.isMetaPressed() && !event.isShiftPressed()) {
+            localShortcutDevices.add(device);
+            releaseKeys(sender);
+            for (Pair<Integer, Integer> modifier : physicalModifiers) {
+                if (modifier.first == device) awaitingRelease.add(modifier);
+            }
+            awaitingRelease.add(key);
+            androidKeyboardMode = !androidKeyboardMode;
+            return true;
+        }
         if (event.getAction() == KeyEvent.ACTION_UP) {
             if (awaitingRelease.remove(key)) {
                 return true;
@@ -36,6 +71,8 @@ final class WindowsKeyCapture {
         if (event.getAction() != KeyEvent.ACTION_DOWN) {
             return false;
         }
+
+        if (androidKeyboardMode) return false;
 
         if (event.getRepeatCount() > 0) {
             KeyEvent original = pressed.get(key);
@@ -52,13 +89,14 @@ final class WindowsKeyCapture {
                 && (pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_META_LEFT))
                     || pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_META_RIGHT)));
         boolean altKey = code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT;
+        boolean ctrlKey = code == KeyEvent.KEYCODE_CTRL_LEFT || code == KeyEvent.KEYCODE_CTRL_RIGHT;
         boolean altHeld = pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_ALT_LEFT))
                 || pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_ALT_RIGHT));
         boolean altShortcutKey = code == KeyEvent.KEYCODE_TAB || code == KeyEvent.KEYCODE_MUTE
                 || code == KeyEvent.KEYCODE_SHIFT_LEFT || code == KeyEvent.KEYCODE_SHIFT_RIGHT;
         boolean extendedShortcut = captureExtendedShortcuts
                 && (code == KeyEvent.KEYCODE_ESCAPE || isFunctionKey(code)
-                    || altKey || (altHeld && altShortcutKey));
+                    || altKey || ctrlKey || (altHeld && altShortcutKey));
         if (!canStart || !(windowsKey || windowsChord || extendedShortcut)) {
             return false;
         }
@@ -143,5 +181,18 @@ final class WindowsKeyCapture {
     void reset() {
         pressed.clear();
         awaitingRelease.clear();
+        localShortcutDevices.clear();
+        androidKeyboardMode = false;
+        physicalModifiers.clear();
+    }
+
+    boolean isAndroidKeyboardMode() { return androidKeyboardMode; }
+    void useRemoteKeyboard() { androidKeyboardMode = false; }
+
+    void inputDeviceRemoved(int deviceId, KeySender sender) {
+        releaseKeys(sender);
+        localShortcutDevices.remove(deviceId);
+        awaitingRelease.removeIf(key -> key.first == deviceId);
+        physicalModifiers.removeIf(key -> key.first == deviceId);
     }
 }
