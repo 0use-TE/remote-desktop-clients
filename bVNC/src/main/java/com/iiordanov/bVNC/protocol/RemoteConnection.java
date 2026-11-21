@@ -25,6 +25,8 @@
 
 package com.iiordanov.bVNC.protocol;
 
+import com.iiordanov.bVNC.OuseConnectionOptions;
+
 import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -123,8 +125,14 @@ abstract public class RemoteConnection implements PointerInputHandler, KeyInputH
 
         // Make this dialog cancellable only upon hitting the Back button and not touching outside.
         this.pd.setCanceledOnTouchOutside(false);
-        this.isLocalToRemoteClipboardIntegrationEnabled = Utils.querySharedPreferenceBoolean(context, Constants.localToRemoteClipboardIntegration, true);
-        this.isRemoteToLocalClipboardIntegrationEnabled = Utils.querySharedPreferenceBoolean(context, Constants.remoteToLocalClipboardIntegration, true);
+        if (Utils.isOuseRdp(context)) {
+            boolean clipboardEnabled = OuseConnectionOptions.load(context, connection.getFilename()).clipboard;
+            this.isLocalToRemoteClipboardIntegrationEnabled = clipboardEnabled;
+            this.isRemoteToLocalClipboardIntegrationEnabled = clipboardEnabled;
+        } else {
+            this.isLocalToRemoteClipboardIntegrationEnabled = Utils.querySharedPreferenceBoolean(context, Constants.localToRemoteClipboardIntegration, true);
+            this.isRemoteToLocalClipboardIntegrationEnabled = Utils.querySharedPreferenceBoolean(context, Constants.remoteToLocalClipboardIntegration, true);
+        }
     }
 
     public RfbConnectable getRfbConn() {

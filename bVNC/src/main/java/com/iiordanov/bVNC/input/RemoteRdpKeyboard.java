@@ -49,6 +49,11 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
         keyboardMapper.toggleWindowsOnScreenKeyboard();
     }
 
+    public void sendWindowsAltF4() {
+        rdpcomm.writeKeyEvent(0, 0, false);
+        keyboardMapper.sendAltF4();
+    }
+
     private boolean processLocalKeyEvent(int keyCode, KeyEvent evt, int additionalMetaState,
                                          boolean capturedWindowsKey) {
         debugLog(App.debugLog, TAG, "processLocalKeyEvent: " + evt.toString() + " " + keyCode);

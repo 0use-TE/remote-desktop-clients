@@ -5,7 +5,9 @@ import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
+import android.os.Build;
 import android.view.Gravity;
+import android.view.PointerIcon;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
@@ -34,6 +36,9 @@ public final class SessionActivity extends RemoteCanvasActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         FrameLayout canvas = (FrameLayout) getCanvas().getParent();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            getCanvas().setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_NULL));
+        }
         controls = new ImageButton(this);
         controls.setImageResource(R.drawable.ouse_settings_icon);
         controls.setContentDescription(getString(R.string.ouse_settings));
@@ -75,6 +80,11 @@ public final class SessionActivity extends RemoteCanvasActivity {
         menu.getMenu().add(R.string.ouse_windows_keyboard)
                 .setOnMenuItemClickListener(item -> {
                     showRemoteWindowsKeyboard();
+                    return true;
+                });
+        menu.getMenu().add(R.string.ouse_send_alt_f4)
+                .setOnMenuItemClickListener(item -> {
+                    sendRemoteAltF4();
                     return true;
                 });
         menu.getMenu().add(R.string.ouse_disconnect)

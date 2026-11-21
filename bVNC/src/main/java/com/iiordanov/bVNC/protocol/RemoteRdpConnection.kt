@@ -1,7 +1,10 @@
 package com.iiordanov.bVNC.protocol
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.iiordanov.bVNC.App
 import com.iiordanov.bVNC.COLORMODEL
 import com.iiordanov.bVNC.OuseDesktopPreferences
@@ -61,6 +64,9 @@ class RemoteRdpConnection(
         val remoteWidth = display?.width ?: canvas.getRemoteWidth(canvas.width, canvas.height)
         val remoteHeight = display?.height ?: canvas.getRemoteHeight(canvas.width, canvas.height)
         val desktopScale = display?.scale ?: connection.desktopScalePercentage
+        val redirectMicrophone = connection.enableRecording && (!Utils.isOuseRdp(context) ||
+                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED)
         rdpComm!!.setConnectionParameters(
             address, rdpPort,
             connection.rdpGatewayEnabled, gatewayAddress, gatewayPort,
@@ -70,7 +76,7 @@ class RemoteRdpConnection(
             connection.desktopComposition, connection.windowContents,
             connection.menuAnimation, connection.visualStyles,
             connection.redirectSdCard, connection.consoleMode,
-            connection.remoteSoundType, connection.enableRecording,
+            connection.remoteSoundType, redirectMicrophone,
             connection.remoteFx, connection.enableGfx, connection.enableGfxH264,
             connection.rdpColor, desktopScale, App.debugLog
         )

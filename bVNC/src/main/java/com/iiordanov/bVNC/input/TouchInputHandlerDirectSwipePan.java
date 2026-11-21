@@ -74,7 +74,7 @@ public class TouchInputHandlerDirectSwipePan extends TouchInputHandlerGeneric {
     public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
         GeneralUtils.debugLog(debugLogging, TAG, "onFling, e1: " + e1 + ", e2: " + e2);
 
-        if (consumeAsMouseWheel(e1, e2)) {
+        if (consumeAsMouseWheel(e1, e2, 0, true)) {
             return true;
         }
 
@@ -112,7 +112,7 @@ public class TouchInputHandlerDirectSwipePan extends TouchInputHandlerGeneric {
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
         GeneralUtils.debugLog(debugLogging, TAG, "onScroll, e1: " + e1 + ", e2: " + e2);
 
-        if (consumeAsMouseWheel(e1, e2)) {
+        if (consumeAsMouseWheel(e1, e2, distanceY, false)) {
             return true;
         }
 

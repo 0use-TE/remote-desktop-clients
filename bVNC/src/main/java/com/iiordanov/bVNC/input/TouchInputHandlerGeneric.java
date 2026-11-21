@@ -32,6 +32,7 @@ import androidx.annotation.NonNull;
 import androidx.core.view.InputDeviceCompat;
 
 import com.iiordanov.bVNC.Constants;
+import com.iiordanov.bVNC.Utils;
 import com.undatech.opaque.InputCarriable;
 import com.undatech.opaque.util.GeneralUtils;
 
@@ -43,6 +44,10 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
     private static final String TAG = "InputHandlerGeneric";
     protected final boolean debugLogging;
     int maxSwipeSpeed;
+    private final boolean useControlledScrolling;
+    private final float scrollRate;
+    private final ScrollSteps wheelSteps = new ScrollSteps();
+    private final ScrollSteps touchSteps = new ScrollSteps();
     // If swipe events are registered once every baseSwipeTime miliseconds, then
     // swipeSpeed will be one. If more often, swipe-speed goes up, if less, down.
     final long baseSwipeTime = 400;
@@ -113,6 +118,8 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
         this.viewable = viewable;
         this.remoteInput = remoteInput;
         this.debugLogging = debugLogging;
+        this.scrollRate = scrollRate;
+        this.useControlledScrolling = Utils.isOuseRdp(viewable.getContext());
         // scrollRate is a unitless scale factor. The historical behaviour
         // corresponds to scrollRate == 1.0f: maxSwipeSpeed cap of 7 and a
         // baseSwipeDist of 10dp. Higher rates raise the cap and shrink the
@@ -134,7 +141,7 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
         distXQueue = new LinkedList<>();
         distYQueue = new LinkedList<>();
 
-        baseSwipeDist = baseSwipeDist * displayDensity / scrollRate;
+        baseSwipeDist = (useControlledScrolling ? 16f : baseSwipeDist) * displayDensity / scrollRate;
         startSwipeDist = startSwipeDist * displayDensity;
         immersiveSwipeDistance = immersiveSwipeDistance * displayDensity;
         GeneralUtils.debugLog(debugLogging, TAG, "displayDensity, baseSwipeDist, immersiveSwipeDistance: "
@@ -227,6 +234,10 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
             // If the mouse wheel was scrolled.
             case MotionEvent.ACTION_SCROLL:
                 float vscroll = e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+                if (useControlledScrolling) {
+                    sendVerticalScroll(wheelSteps.take(vscroll * scrollRate), x, y, meta);
+                    return true;
+                }
                 float hscroll = e.getAxisValue(MotionEvent.AXIS_HSCROLL);
                 scrollDown = false;
                 scrollUp = false;
@@ -307,6 +318,20 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
             numEvents++;
         }
         remoteInput.getPointer().releaseButton(x, y, meta);
+    }
+
+    private void sendVerticalScroll(int steps, int x, int y, int meta) {
+        if (steps == 0) {
+            return;
+        }
+        scrollUp = steps > 0;
+        scrollDown = steps < 0;
+        scrollLeft = false;
+        scrollRight = false;
+        swipeSpeed = Math.abs(steps);
+        sendScrollEvents(x, y, meta);
+        scrollUp = false;
+        scrollDown = false;
     }
 
     /**
@@ -448,6 +473,7 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
             case 0:
                 switch (action) {
                     case MotionEvent.ACTION_DOWN:
+                        touchSteps.reset();
                         disregardNextOnFling = false;
                         singleHandedJustEnded = false;
                         // We have put down first pointer on the screen, so we can reset the state of all click-state variables.
@@ -500,13 +526,17 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
                             remoteInput.getPointer().moveMouseButtonDown(getX(e), getY(e), meta);
                             GeneralUtils.debugLog(debugLogging, TAG, "onTouchEvent: ACTION_MOVE in a drag mode, moving mouse with button down");
                             return true;
-                        } else if (inSwiping) {
+                        } else if (inSwiping && (!useControlledScrolling || scrollUp || scrollDown)) {
                             // Save the coordinates and restore them afterward.
                             float x = e.getX();
                             float y = e.getY();
                             // Set the coordinates to where the swipe began (i.e. where scaling started).
                             setEventCoordinates(e, xInitialFocus, yInitialFocus);
                             sendScrollEvents(getX(e), getY(e), meta);
+                            if (useControlledScrolling) {
+                                scrollUp = false;
+                                scrollDown = false;
+                            }
                             // Restore the coordinates so that onScale doesn't get all muddled up.
                             setEventCoordinates(e, x, y);
                             GeneralUtils.debugLog(debugLogging, TAG, "onTouchEvent: ACTION_MOVE inSwiping, saving coordinates");
@@ -623,7 +653,7 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
                 long elapsedTime = detector.getTimeDelta();
                 if (elapsedTime < 10) elapsedTime = 10;
 
-                swipeSpeed = baseSwipeTime / elapsedTime;
+                swipeSpeed = useControlledScrolling ? 1 : baseSwipeTime / elapsedTime;
                 if (swipeSpeed == 0) swipeSpeed = 1;
                 GeneralUtils.debugLog(debugLogging, TAG, "Current swipe speed: " + swipeSpeed);
             }
@@ -687,7 +717,7 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
         return sign;
     }
 
-    boolean consumeAsMouseWheel(MotionEvent e1, MotionEvent e2) {
+    boolean consumeAsMouseWheel(MotionEvent e1, MotionEvent e2, float distanceY, boolean fling) {
         if (e1 == null || e2 == null) {
             return false;
         }
@@ -706,6 +736,15 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
 
         if (!useEvent) {
             return false;
+        }
+
+        if (useControlledScrolling) {
+            if (!fling && e2.getPointerCount() == 1 && !secondPointerWasDown
+                    && !inSwiping && !inScaling && !scalingJustFinished) {
+                int steps = touchSteps.take(-distanceY / baseSwipeDist);
+                sendVerticalScroll(steps, getX(e1), getY(e1), e2.getMetaState());
+            }
+            return true;
         }
 
         int meta = e1.getMetaState();

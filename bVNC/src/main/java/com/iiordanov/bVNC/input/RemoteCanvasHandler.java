@@ -1,5 +1,7 @@
 package com.iiordanov.bVNC.input;
 
+import com.iiordanov.bVNC.OuseSavedCredentials;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
@@ -437,7 +439,9 @@ public class RemoteCanvasHandler extends Handler implements HttpsFileDownloader.
                         obtainer, GetTextFragment.CredentialsWithDomain,
                         R.string.enter_rdp_credentials, R.string.enter_rdp_credentials,
                         connection.getUserName(), connection.getRdpDomain(), connection.getPassword(),
-                        connection.getKeepPassword());
+                        Utils.isOuseRdp(context)
+                                ? OuseSavedCredentials.hasPassword(context, connection.getFilename())
+                                : connection.getKeepPassword());
                 break;
             case RemoteClientLibConstants.GET_RDP_GATEWAY_CREDENTIALS:
                 showGetTextFragment(context.getString(R.string.enter_gateway_credentials),

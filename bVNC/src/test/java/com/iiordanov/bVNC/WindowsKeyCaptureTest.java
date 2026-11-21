@@ -3,6 +3,8 @@ package com.iiordanov.bVNC;
 import static android.view.KeyEvent.ACTION_DOWN;
 import static android.view.KeyEvent.ACTION_UP;
 import static android.view.KeyEvent.KEYCODE_E;
+import static android.view.KeyEvent.KEYCODE_F4;
+import static android.view.KeyEvent.KEYCODE_MUTE;
 import static android.view.KeyEvent.KEYCODE_ALT_LEFT;
 import static android.view.KeyEvent.KEYCODE_SHIFT_LEFT;
 import static android.view.KeyEvent.KEYCODE_TAB;
@@ -91,6 +93,21 @@ public class WindowsKeyCaptureTest {
         assertTrue(key(ACTION_UP, KEYCODE_SHIFT_LEFT, META_ALT_ON, true, true));
         assertTrue(key(ACTION_UP, KEYCODE_ALT_LEFT, 0, true, true));
         assertEquals(8, sent.size());
+    }
+
+    @Test
+    public void capturesAltF4AndRemapsMicrophoneKeyOnlyWithAltHeld() {
+        assertFalse(key(ACTION_DOWN, KEYCODE_MUTE, 0, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_F4, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_F4, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_MUTE, 0, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_ALT_LEFT, 0, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_MUTE, 0, true, true));
+        assertEquals(KEYCODE_F4, sent.get(1).getKeyCode());
+        assertEquals(KEYCODE_F4, sent.get(3).getKeyCode());
+        assertEquals(KEYCODE_F4, sent.get(5).getKeyCode());
+        assertEquals(ACTION_UP, sent.get(5).getAction());
     }
 
     @Test

@@ -12,6 +12,11 @@ public final class OuseDesktopPreferences {
         return Utils.querySharedPreferenceBoolean(context, "ouseShowWindowsWhileDragging", true);
     }
 
+    public static float scrollRate(Context context) {
+        int setting = readNumber(context, "ouseScrollRate");
+        return setting >= 25 && setting <= 150 ? setting / 100f : .5f;
+    }
+
     public static Display displayFor(Context context, int width, int height) {
         int maxEdge = readNumber(context, "ouseMaxDesktopEdge");
         int scale = readNumber(context, "ouseWindowsScale");

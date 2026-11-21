@@ -3,9 +3,11 @@ package com.iiordanov.bVNC
 import android.content.Context
 import android.os.Handler
 import android.util.Log
+import android.widget.Toast
 import com.iiordanov.bVNC.dialogs.GetTextFragment
 import com.undatech.opaque.Connection
 import com.undatech.opaque.RemoteClientLibConstants
+import com.undatech.remoteClientUi.R
 
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 class CredentialsObtainer(
@@ -51,7 +53,19 @@ class CredentialsObtainer(
                 connection.userName = obtainedString[0]
                 connection.rdpDomain = obtainedString[1]
                 connection.password = obtainedString[2]
-                connection.keepPassword = save
+                if (Utils.isOuseRdp(context)) {
+                    connection.keepPassword = false
+                    if (save && !connection.password.isNullOrEmpty()) {
+                        if (!OuseSavedCredentials.save(context, connection.filename, connection.password)) {
+                            OuseSavedCredentials.remove(context, connection.filename)
+                            Toast.makeText(context, R.string.ouse_credential_save_failed, Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        OuseSavedCredentials.remove(context, connection.filename)
+                    }
+                } else {
+                    connection.keepPassword = save
+                }
                 connection.save(context)
                 handler.sendEmptyMessage(RemoteClientLibConstants.REINIT_SESSION)
             }

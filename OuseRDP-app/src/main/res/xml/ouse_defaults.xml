@@ -24,6 +24,15 @@
     <PreferenceCategory android:title="@string/ouse_input_defaults">
         <Preference android:key="ouseShortcutSetup" android:title="@string/ouse_capture_windows_shortcuts" />
     </PreferenceCategory>
+    <PreferenceCategory android:title="@string/ouse_pointer_defaults">
+        <ListPreference
+            android:key="ouseScrollRate"
+            android:title="@string/ouse_scroll_rate"
+            android:entries="@array/ouse_scroll_options"
+            android:entryValues="@array/ouse_scroll_values"
+            android:defaultValue="50"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
     <Preference
         android:key="ouseAbout"
         android:title="@string/ouse_about" />

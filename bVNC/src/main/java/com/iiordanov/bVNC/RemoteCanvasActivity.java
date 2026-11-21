@@ -1137,6 +1137,9 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     }
 
     float getScrollRate() {
+        if (Utils.isOuseRdp(this)) {
+            return OuseDesktopPreferences.scrollRate(this);
+        }
         int slider = Utils.querySharedPreferencesInt(this, Constants.scrollSpeed, Constants.DEFAULT_SCROLL_SPEED);
         return (slider + 1) / 7f;
     }
@@ -1484,6 +1487,13 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         if (canSendCapturedKeys()) {
             WindowsKeyCaptureService.releaseKeys(this);
             ((RemoteRdpKeyboard) remoteConnection.getKeyboard()).showWindowsKeyboard();
+        }
+    }
+
+    protected void sendRemoteAltF4() {
+        if (canSendCapturedKeys()) {
+            WindowsKeyCaptureService.releaseKeys(this);
+            ((RemoteRdpKeyboard) remoteConnection.getKeyboard()).sendWindowsAltF4();
         }
     }
 

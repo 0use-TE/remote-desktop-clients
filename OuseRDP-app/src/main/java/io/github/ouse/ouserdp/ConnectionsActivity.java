@@ -1,7 +1,9 @@
 package io.github.ouse.ouserdp;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
@@ -12,19 +14,26 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.iiordanov.bVNC.ConnectionBean;
 import com.iiordanov.bVNC.Constants;
+import com.iiordanov.bVNC.OuseConnectionOptions;
 import com.iiordanov.bVNC.OuseDesktopPreferences;
+import com.iiordanov.bVNC.OuseSavedCredentials;
 import com.iiordanov.bVNC.Utils;
 import com.undatech.opaque.Connection;
 import com.undatech.opaque.util.ConnectionLoader;
@@ -39,6 +48,21 @@ public final class ConnectionsActivity extends AppCompatActivity {
     private static final String LAST_CONNECTION = "lastConnection";
     private static final int DEFAULT_RDP_PORT = 3389;
     private LinearLayout list;
+    private ConnectionBean pendingMicrophoneConnection;
+    private String pendingPassword;
+    private final ActivityResultLauncher<String> microphonePermission = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), granted -> {
+                ConnectionBean connection = pendingMicrophoneConnection;
+                String password = pendingPassword;
+                pendingMicrophoneConnection = null;
+                pendingPassword = null;
+                if (connection != null) {
+                    if (!granted) {
+                        Toast.makeText(this, R.string.ouse_microphone_denied, Toast.LENGTH_LONG).show();
+                    }
+                    startSession(connection, password, granted);
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,10 +187,25 @@ public final class ConnectionsActivity extends AppCompatActivity {
             address.setText(endpoint(existing));
             account.setText(username(existing));
         }
+        OuseConnectionOptions options = OuseConnectionOptions.load(this, adding ? "" : existing.getFilename());
+        TextView redirectionTitle = text(getString(R.string.ouse_redirection), 16, R.color.ouse_text);
+        redirectionTitle.setTypeface(null, Typeface.BOLD);
+        redirectionTitle.setPadding(0, dp(14), 0, 0);
+        form.addView(redirectionTitle);
+        MaterialCheckBox clipboard = checkbox(form, R.string.ouse_redirect_clipboard, options.clipboard);
+        MaterialCheckBox sound = checkbox(form, R.string.ouse_redirect_sound, options.sound);
+        MaterialCheckBox microphone = checkbox(form, R.string.ouse_redirect_microphone, options.microphone);
+        MaterialCheckBox forgetPassword = null;
+        if (!adding && OuseSavedCredentials.hasPassword(this, existing.getFilename())) {
+            forgetPassword = checkbox(form, R.string.ouse_forget_password, false);
+        }
+        MaterialCheckBox forgetSavedPassword = forgetPassword;
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(form);
 
         MaterialAlertDialogBuilder dialogBuilder = new MaterialAlertDialogBuilder(this)
                 .setTitle(adding ? R.string.ouse_add_computer : R.string.ouse_edit_computer)
-                .setView(form)
+                .setView(scroll)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(adding ? R.string.ouse_save_and_connect : R.string.ouse_save, null);
         if (!adding) {
@@ -192,16 +231,27 @@ public final class ConnectionsActivity extends AppCompatActivity {
             ConnectionBean connection = adding ? new ConnectionBean(this) : existing;
             String host = target.getHost().replace("[", "").replace("]", "");
             int port = target.getPort() < 0 ? DEFAULT_RDP_PORT : target.getPort();
-            if (!adding && (!host.equalsIgnoreCase(existing.getAddress()) || port != existing.getPort())) {
+            String domain = domainSeparator < 0 ? "" : enteredAccount.substring(0, domainSeparator);
+            boolean addressChanged = !adding &&
+                    (!host.equalsIgnoreCase(existing.getAddress()) || port != existing.getPort());
+            if (addressChanged) {
                 connection.setX509KeySignature("");
+            }
+            if (!adding && (addressChanged || !user.equals(existing.getUserName())
+                    || !domain.equals(existing.getRdpDomain())
+                    || (forgetSavedPassword != null && forgetSavedPassword.isChecked()))) {
+                OuseSavedCredentials.remove(this, existing.getFilename());
             }
             connection.setAddress(host);
             connection.setPort(port);
             connection.setNickname(endpoint(connection));
             connection.setUserName(user);
-            connection.setRdpDomain(domainSeparator < 0 ? "" : enteredAccount.substring(0, domainSeparator));
+            connection.setRdpDomain(domain);
             applyDesktopDefaults(connection);
+            connection.setPassword("");
             connection.save(this);
+            OuseConnectionOptions.save(this, connection.getFilename(), clipboard.isChecked(),
+                    sound.isChecked(), microphone.isChecked());
             dialog.dismiss();
             refreshConnections();
             if (adding) {
@@ -211,24 +261,58 @@ public final class ConnectionsActivity extends AppCompatActivity {
     }
 
     private void requestPassword(ConnectionBean connection) {
+        String saved = OuseSavedCredentials.read(this, connection.getFilename());
+        if (saved != null) {
+            connect(connection, saved);
+            return;
+        }
         LinearLayout form = dialogForm();
         EditText password = field(R.string.ouse_password, InputType.TYPE_CLASS_TEXT
                 | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         form.addView(password);
+        MaterialCheckBox remember = checkbox(form, R.string.ouse_remember_password, false);
+        if (!OuseSavedCredentials.isSupported()) {
+            remember.setVisibility(android.view.View.GONE);
+        }
         new MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.ouse_connect_to, endpoint(connection)))
                 .setView(form)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.ouse_connect, (dialog, which) -> {
-                    applyDesktopDefaults(connection);
-                    connection.setPassword(password.getText().toString());
-                    getPreferences(Context.MODE_PRIVATE).edit().putString(LAST_CONNECTION, connection.getId()).apply();
-                    Intent intent = new Intent(this, SessionActivity.class);
-                    intent.putExtra(Utils.getConnectionString(this), connection.Gen_getValues());
-                    connection.setPassword("");
-                    startActivity(intent);
+                    String entered = password.getText().toString();
+                    if (remember.isChecked() && !entered.isEmpty() &&
+                            !OuseSavedCredentials.save(this, connection.getFilename(), entered)) {
+                        Toast.makeText(this, com.undatech.remoteClientUi.R.string.ouse_credential_save_failed,
+                                Toast.LENGTH_LONG).show();
+                    }
+                    connect(connection, entered);
                 })
                 .show();
+    }
+
+    private void connect(ConnectionBean connection, String password) {
+        boolean microphone = OuseConnectionOptions.load(this, connection.getFilename()).microphone;
+        if (microphone && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
+            pendingMicrophoneConnection = connection;
+            pendingPassword = password;
+            microphonePermission.launch(Manifest.permission.RECORD_AUDIO);
+        } else {
+            startSession(connection, password, microphone);
+        }
+    }
+
+    private void startSession(ConnectionBean connection, String password, boolean microphone) {
+        applyDesktopDefaults(connection);
+        boolean sound = OuseConnectionOptions.load(this, connection.getFilename()).sound;
+        connection.setRemoteSoundType(sound ? Constants.REMOTE_SOUND_ON_DEVICE : Constants.REMOTE_SOUND_DISABLED);
+        connection.setEnableRecording(microphone);
+        connection.setPassword(password);
+        getPreferences(Context.MODE_PRIVATE).edit().putString(LAST_CONNECTION, connection.getId()).apply();
+        Intent intent = new Intent(this, SessionActivity.class);
+        intent.putExtra(Utils.getConnectionString(this), connection.Gen_getValues());
+        connection.setPassword("");
+        startActivity(intent);
     }
 
     private void applyDesktopDefaults(ConnectionBean connection) {
@@ -272,6 +356,8 @@ public final class ConnectionsActivity extends AppCompatActivity {
                 .setMessage(getString(R.string.ouse_remove_computer, endpoint(connection)))
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.ouse_remove, (dialog, which) -> {
+                    OuseSavedCredentials.remove(this, connection.getFilename());
+                    OuseConnectionOptions.remove(this, connection.getFilename());
                     connection.deleteSavedConnection(this);
                     refreshConnections();
                 })
@@ -291,6 +377,14 @@ public final class ConnectionsActivity extends AppCompatActivity {
         field.setHint(hint);
         field.setInputType(inputType);
         return field;
+    }
+
+    private MaterialCheckBox checkbox(LinearLayout form, int label, boolean checked) {
+        MaterialCheckBox item = new MaterialCheckBox(this);
+        item.setText(label);
+        item.setChecked(checked);
+        form.addView(item, new LinearLayout.LayoutParams(-1, -2));
+        return item;
     }
 
     private MaterialButton button(int label, Runnable action, boolean textStyle) {

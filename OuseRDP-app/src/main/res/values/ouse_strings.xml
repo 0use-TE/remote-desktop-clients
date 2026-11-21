@@ -10,6 +10,13 @@
     <string name="ouse_username">Windows username</string>
     <string name="ouse_username_error">Enter a Windows username.</string>
     <string name="ouse_password">Windows password</string>
+    <string name="ouse_remember_password">Save password on this device</string>
+    <string name="ouse_forget_password">Forget saved password</string>
+    <string name="ouse_redirection">Redirection</string>
+    <string name="ouse_redirect_clipboard">Share clipboard</string>
+    <string name="ouse_redirect_sound">Play Windows audio on Android</string>
+    <string name="ouse_redirect_microphone">Send Android microphone to Windows</string>
+    <string name="ouse_microphone_denied">Microphone permission denied. Connecting without microphone.</string>
     <string name="ouse_connect">Connect</string>
     <string name="ouse_connect_to">Connect to %1$s</string>
     <string name="ouse_save">Save</string>
@@ -25,10 +32,13 @@
     <string name="ouse_windows_scale">Windows text and app size</string>
     <string name="ouse_show_windows_while_dragging">Show window contents while dragging</string>
     <string name="ouse_input_defaults">Keyboard</string>
+    <string name="ouse_pointer_defaults">Mouse and touch · applies on next connection</string>
+    <string name="ouse_scroll_rate">Scroll sensitivity</string>
     <string name="ouse_capture_windows_shortcuts">Capture Windows shortcuts</string>
-    <string name="ouse_shortcuts_enabled">Enabled · Win, Alt+Tab and Alt+Shift+Tab</string>
-    <string name="ouse_shortcuts_disabled">Disabled · enable Win, Alt+Tab and Alt+Shift+Tab in Android Accessibility</string>
+    <string name="ouse_shortcuts_enabled">Enabled · Win, Alt+Tab, Alt+Shift+Tab and Alt+F4</string>
+    <string name="ouse_shortcuts_disabled">Disabled · open Android Accessibility to enable Win, Alt+Tab and Alt+F4</string>
     <string name="ouse_windows_keyboard">Windows on-screen keyboard</string>
+    <string name="ouse_send_alt_f4">Send Alt+F4</string>
     <string name="ouse_disconnect">Disconnect</string>
     <string name="ouse_about">About</string>
     <string name="ouse_credits">Remote desktop engine based on aRDP by Iordan Iordanov and the FreeRDP project.</string>
@@ -51,5 +61,11 @@
     <string-array name="ouse_scale_values" translatable="false">
         <item>0</item><item>100</item><item>125</item><item>150</item><item>175</item>
         <item>200</item><item>250</item><item>300</item>
+    </string-array>
+    <string-array name="ouse_scroll_options" translatable="false">
+        <item>25%</item><item>50%</item><item>75%</item><item>100%</item><item>150%</item>
+    </string-array>
+    <string-array name="ouse_scroll_values" translatable="false">
+        <item>25</item><item>50</item><item>75</item><item>100</item><item>150</item>
     </string-array>
 </resources>
