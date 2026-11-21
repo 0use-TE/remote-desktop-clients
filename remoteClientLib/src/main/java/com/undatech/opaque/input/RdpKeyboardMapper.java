@@ -622,6 +622,8 @@ public class RdpKeyboardMapper {
     }
 
     private int getVirtualKeyCode(int keycode) {
+        if (keycode >= KeyEvent.KEYCODE_F13 && keycode <= KeyEvent.KEYCODE_F24)
+            return VK_F13 + keycode - KeyEvent.KEYCODE_F13;
         if (keycode >= 0 && keycode <= 0xFF)
             return keymapAndroid[keycode];
         return 0;

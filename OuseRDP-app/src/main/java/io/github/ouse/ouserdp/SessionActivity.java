@@ -28,7 +28,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
     }
 
     @Override
-    protected boolean capturesAltTab() {
+    protected boolean capturesExtendedShortcuts() {
         return true;
     }
 

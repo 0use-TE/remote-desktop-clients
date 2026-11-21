@@ -1479,7 +1479,7 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         return false;
     }
 
-    protected boolean capturesAltTab() {
+    protected boolean capturesExtendedShortcuts() {
         return false;
     }
 

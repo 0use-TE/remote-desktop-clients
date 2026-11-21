@@ -74,7 +74,7 @@ public final class WindowsKeyCaptureService extends AccessibilityService
                 && device != null && !device.isVirtual()
                 && device.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
         return capture.onKeyEvent(event, sessionActive && physicalKeyboard,
-                session != null && session.capturesAltTab(),
+                session != null && session.capturesExtendedShortcuts(),
                 WindowsKeyCaptureService::sendKey);
     }
 

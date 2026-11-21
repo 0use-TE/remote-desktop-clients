@@ -3,8 +3,13 @@ package com.iiordanov.bVNC;
 import static android.view.KeyEvent.ACTION_DOWN;
 import static android.view.KeyEvent.ACTION_UP;
 import static android.view.KeyEvent.KEYCODE_E;
+import static android.view.KeyEvent.KEYCODE_F1;
+import static android.view.KeyEvent.KEYCODE_F12;
+import static android.view.KeyEvent.KEYCODE_F13;
+import static android.view.KeyEvent.KEYCODE_F24;
 import static android.view.KeyEvent.KEYCODE_F4;
 import static android.view.KeyEvent.KEYCODE_MUTE;
+import static android.view.KeyEvent.KEYCODE_VOLUME_DOWN;
 import static android.view.KeyEvent.KEYCODE_ALT_LEFT;
 import static android.view.KeyEvent.KEYCODE_SHIFT_LEFT;
 import static android.view.KeyEvent.KEYCODE_TAB;
@@ -108,6 +113,47 @@ public class WindowsKeyCaptureTest {
         assertEquals(KEYCODE_F4, sent.get(3).getKeyCode());
         assertEquals(KEYCODE_F4, sent.get(5).getKeyCode());
         assertEquals(ACTION_UP, sent.get(5).getAction());
+    }
+
+    @Test
+    public void forwardsAllFunctionKeysAndPreservesModifiers() {
+        for (int index = 0; index < 24; index++) {
+            int code = index < 12 ? KEYCODE_F1 + index : KEYCODE_F13 + index - 12;
+            int modifiers = index % 2 == 0 ? 0 : KeyEvent.META_CTRL_ON | META_SHIFT_ON;
+            assertFalse(key(ACTION_DOWN, code, modifiers, true, false));
+            assertTrue(key(ACTION_DOWN, code, modifiers, true, true));
+            assertTrue(key(ACTION_UP, code, 0, true, true));
+            assertEquals(code, sent.get(index * 2).getKeyCode());
+            assertEquals(modifiers, sent.get(index * 2).getMetaState());
+            assertEquals(code, sent.get(index * 2 + 1).getKeyCode());
+        }
+    }
+
+    @Test
+    public void remapsAnOemMediaKeyOnlyWhenItsScanCodeIdentifiesAFunctionKey() {
+        KeyEvent media = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_VOLUME_DOWN, 0, 0, 1, 114);
+        assertFalse(capture.onKeyEvent(media, true, true, sent::add));
+        KeyEvent function = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_VOLUME_DOWN, 0, 0, 1, 88);
+        assertTrue(capture.onKeyEvent(function, true, true, sent::add));
+        assertTrue(capture.onKeyEvent(KeyEvent.changeAction(function, ACTION_UP), true, true, sent::add));
+        assertEquals(KEYCODE_F12, sent.get(0).getKeyCode());
+        assertEquals(KEYCODE_F12, sent.get(1).getKeyCode());
+    }
+
+    @Test
+    public void mapsExtendedFunctionKeysToWindowsVirtualKeys() {
+        RdpKeyboardMapper mapper = new RdpKeyboardMapper(true, false);
+        mapper.init(RuntimeEnvironment.getApplication());
+        RdpKeyboardMapper.KeyProcessingListener listener =
+                mock(RdpKeyboardMapper.KeyProcessingListener.class);
+        mapper.reset(listener);
+        for (int code = KEYCODE_F13; code <= KEYCODE_F24; code++) {
+            assertTrue(mapper.processAndroidKeyEvent(new KeyEvent(ACTION_DOWN, code), false, true));
+            assertTrue(mapper.processAndroidKeyEvent(new KeyEvent(ACTION_UP, code), false, true));
+            int windowsCode = 0x7C + code - KEYCODE_F13;
+            verify(listener).processVirtualKey(windowsCode, true);
+            verify(listener).processVirtualKey(windowsCode, false);
+        }
     }
 
     @Test

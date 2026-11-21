@@ -24,7 +24,7 @@
     <string name="ouse_remove">Remove</string>
     <string name="ouse_remove_computer">Remove %1$s from saved computers?</string>
     <string name="ouse_keyboard_capture">OuseRDP keyboard shortcuts</string>
-    <string name="ouse_keyboard_capture_detail">Sends physical Win and Alt+Tab shortcuts to Windows while a connected OuseRDP session has focus.</string>
+    <string name="ouse_keyboard_capture_detail">Sends Win shortcuts, Alt+Tab and F1–F24 to Windows while a connected OuseRDP session has focus.</string>
     <string name="ouse_settings">Settings</string>
     <string name="ouse_back">Back</string>
     <string name="ouse_display_defaults">Display · applies on next connection</string>
@@ -35,8 +35,8 @@
     <string name="ouse_pointer_defaults">Mouse and touch · applies on next connection</string>
     <string name="ouse_scroll_rate">Scroll sensitivity</string>
     <string name="ouse_capture_windows_shortcuts">Capture Windows shortcuts</string>
-    <string name="ouse_shortcuts_enabled">Enabled · Win, Alt+Tab, Alt+Shift+Tab and Alt+F4</string>
-    <string name="ouse_shortcuts_disabled">Disabled · open Android Accessibility to enable Win, Alt+Tab and Alt+F4</string>
+    <string name="ouse_shortcuts_enabled">Enabled · Win shortcuts, Alt+Tab and F1–F24</string>
+    <string name="ouse_shortcuts_disabled">Disabled · open Android Accessibility to enable Win shortcuts, Alt+Tab and F1–F24</string>
     <string name="ouse_windows_keyboard">Windows on-screen keyboard</string>
     <string name="ouse_send_alt_f4">Send Alt+F4</string>
     <string name="ouse_disconnect">Disconnect</string>

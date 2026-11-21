@@ -18,9 +18,9 @@ final class WindowsKeyCapture {
     private final Map<Pair<Integer, Integer>, KeyEvent> pressed = new LinkedHashMap<>();
     private final Set<Pair<Integer, Integer>> awaitingRelease = new HashSet<>();
 
-    boolean onKeyEvent(KeyEvent event, boolean canStart, boolean captureAltTab, KeySender sender) {
+    boolean onKeyEvent(KeyEvent event, boolean canStart, boolean captureExtendedShortcuts, KeySender sender) {
         int device = event.getDeviceId();
-        int code = event.getKeyCode();
+        int code = captureExtendedShortcuts ? resolveFunctionKey(event) : event.getKeyCode();
         Pair<Integer, Integer> key = Pair.create(device, code);
         if (event.getAction() == KeyEvent.ACTION_UP) {
             if (awaitingRelease.remove(key)) {
@@ -54,19 +54,60 @@ final class WindowsKeyCapture {
         boolean altKey = code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT;
         boolean altHeld = pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_ALT_LEFT))
                 || pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_ALT_RIGHT));
-        boolean altShortcutKey = code == KeyEvent.KEYCODE_TAB || code == KeyEvent.KEYCODE_F4
-                || code == KeyEvent.KEYCODE_MUTE
+        boolean altShortcutKey = code == KeyEvent.KEYCODE_TAB || code == KeyEvent.KEYCODE_MUTE
                 || code == KeyEvent.KEYCODE_SHIFT_LEFT || code == KeyEvent.KEYCODE_SHIFT_RIGHT;
-        if (!canStart || !(windowsKey || windowsChord || (captureAltTab && (altKey || (altHeld && altShortcutKey))))) {
+        boolean extendedShortcut = captureExtendedShortcuts
+                && (isFunctionKey(code) || altKey || (altHeld && altShortcutKey));
+        if (!canStart || !(windowsKey || windowsChord || extendedShortcut)) {
             return false;
         }
 
         // Some Android keyboards report their F4/microphone key as mute even with Alt held.
-        KeyEvent forwarded = captureAltTab && altHeld && code == KeyEvent.KEYCODE_MUTE
-                ? withKeyCode(event, KeyEvent.KEYCODE_F4) : event;
+        int forwardedCode = captureExtendedShortcuts && altHeld && code == KeyEvent.KEYCODE_MUTE
+                ? KeyEvent.KEYCODE_F4 : code;
+        KeyEvent forwarded = withKeyCode(event, forwardedCode);
         pressed.put(key, new KeyEvent(forwarded));
         sender.send(forwarded);
         return true;
+    }
+
+    private static boolean isFunctionKey(int code) {
+        return (code >= KeyEvent.KEYCODE_F1 && code <= KeyEvent.KEYCODE_F12)
+                || (code >= KeyEvent.KEYCODE_F13 && code <= KeyEvent.KEYCODE_F24);
+    }
+
+    private static int resolveFunctionKey(KeyEvent event) {
+        int code = event.getKeyCode();
+        switch (code) {
+            case KeyEvent.KEYCODE_UNKNOWN:
+            case KeyEvent.KEYCODE_BRIGHTNESS_DOWN:
+            case KeyEvent.KEYCODE_BRIGHTNESS_UP:
+            case KeyEvent.KEYCODE_KEYBOARD_BACKLIGHT_DOWN:
+            case KeyEvent.KEYCODE_KEYBOARD_BACKLIGHT_UP:
+            case KeyEvent.KEYCODE_KEYBOARD_BACKLIGHT_TOGGLE:
+            case KeyEvent.KEYCODE_MUTE:
+            case KeyEvent.KEYCODE_VOLUME_MUTE:
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+            case KeyEvent.KEYCODE_VOLUME_UP:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+                // For an OEM remap, use the underlying Linux code only if it identifies an F key.
+                int scan = event.getScanCode();
+                if (scan >= 59 && scan <= 68) {
+                    return KeyEvent.KEYCODE_F1 + scan - 59;
+                }
+                if (scan == 87 || scan == 88) {
+                    return KeyEvent.KEYCODE_F11 + scan - 87;
+                }
+                if (scan >= 183 && scan <= 194) {
+                    return KeyEvent.KEYCODE_F13 + scan - 183;
+                }
+                break;
+            default:
+                break;
+        }
+        return code;
     }
 
     private static KeyEvent withKeyCode(KeyEvent event, int keyCode) {
