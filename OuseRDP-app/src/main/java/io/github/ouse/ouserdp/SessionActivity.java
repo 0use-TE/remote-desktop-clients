@@ -15,12 +15,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.iiordanov.bVNC.OuseDesktopPreferences;
 import com.iiordanov.bVNC.RemoteCanvasActivity;
 
 public final class SessionActivity extends RemoteCanvasActivity {
     private ImageButton controls;
-    private boolean captureAltTab;
 
     @Override
     protected boolean usesCompactSessionUi() {
@@ -29,13 +27,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
 
     @Override
     protected boolean capturesAltTab() {
-        return captureAltTab;
-    }
-
-    @Override
-    protected void onResume() {
-        captureAltTab = OuseDesktopPreferences.captureAltTab(this);
-        super.onResume();
+        return true;
     }
 
     @Override

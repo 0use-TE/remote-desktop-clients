@@ -8,10 +8,6 @@ public final class OuseDesktopPreferences {
 
     private OuseDesktopPreferences() {}
 
-    public static boolean captureAltTab(Context context) {
-        return Utils.querySharedPreferenceBoolean(context, "ouseCaptureAltTab", true);
-    }
-
     public static boolean showWindowsWhileDragging(Context context) {
         return Utils.querySharedPreferenceBoolean(context, "ouseShowWindowsWhileDragging", true);
     }

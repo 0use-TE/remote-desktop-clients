@@ -25,10 +25,9 @@
     <string name="ouse_windows_scale">Windows text and app size</string>
     <string name="ouse_show_windows_while_dragging">Show window contents while dragging</string>
     <string name="ouse_input_defaults">Keyboard</string>
-    <string name="ouse_shortcuts_enabled">Enabled · open Android Accessibility</string>
-    <string name="ouse_shortcuts_disabled">Disabled · open Android Accessibility</string>
-    <string name="ouse_send_alt_tab">Send Alt+Tab to Windows</string>
-    <string name="ouse_send_alt_tab_detail">Requires the OuseRDP accessibility service</string>
+    <string name="ouse_capture_windows_shortcuts">Capture Windows shortcuts</string>
+    <string name="ouse_shortcuts_enabled">Enabled · Win, Alt+Tab and Alt+Shift+Tab</string>
+    <string name="ouse_shortcuts_disabled">Disabled · enable Win, Alt+Tab and Alt+Shift+Tab in Android Accessibility</string>
     <string name="ouse_windows_keyboard">Windows on-screen keyboard</string>
     <string name="ouse_disconnect">Disconnect</string>
     <string name="ouse_about">About</string>

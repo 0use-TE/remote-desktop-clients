@@ -22,12 +22,7 @@
             android:defaultValue="true" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/ouse_input_defaults">
-        <Preference android:key="ouseShortcutSetup" android:title="@string/ouse_keyboard_capture" />
-        <SwitchPreferenceCompat
-            android:key="ouseCaptureAltTab"
-            android:title="@string/ouse_send_alt_tab"
-            android:defaultValue="true"
-            android:summary="@string/ouse_send_alt_tab_detail" />
+        <Preference android:key="ouseShortcutSetup" android:title="@string/ouse_capture_windows_shortcuts" />
     </PreferenceCategory>
     <Preference
         android:key="ouseAbout"

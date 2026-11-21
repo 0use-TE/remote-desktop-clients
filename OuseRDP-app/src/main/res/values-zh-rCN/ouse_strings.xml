@@ -24,10 +24,9 @@
     <string name="ouse_windows_scale">Windows 文字和应用大小</string>
     <string name="ouse_show_windows_while_dragging">拖动时显示窗口内容</string>
     <string name="ouse_input_defaults">键盘</string>
-    <string name="ouse_shortcuts_enabled">已启用 · 打开 Android 无障碍设置</string>
-    <string name="ouse_shortcuts_disabled">未启用 · 打开 Android 无障碍设置</string>
-    <string name="ouse_send_alt_tab">将 Alt+Tab 发给 Windows</string>
-    <string name="ouse_send_alt_tab_detail">需要启用 OuseRDP 无障碍服务</string>
+    <string name="ouse_capture_windows_shortcuts">捕获 Windows 快捷键</string>
+    <string name="ouse_shortcuts_enabled">已启用 · Win、Alt+Tab 和 Alt+Shift+Tab</string>
+    <string name="ouse_shortcuts_disabled">未启用 · 在 Android 无障碍设置中开启 Win、Alt+Tab 和 Alt+Shift+Tab</string>
     <string name="ouse_windows_keyboard">Windows 屏幕键盘</string>
     <string name="ouse_disconnect">断开连接</string>
     <string name="ouse_about">关于</string>
