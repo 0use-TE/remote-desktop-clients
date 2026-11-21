@@ -1,0 +1,42 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'io.github.ouse.ouserdp'
+    compileSdkVersion compileApi
+
+    defaultConfig {
+        applicationId 'io.github.ouse.ouserdp'
+        minSdkVersion project.getProperties().get('SDK_VERSION')
+        targetSdkVersion targetApi
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            universalApk true
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF']
+        }
+    }
+}
+
+dependencies {
+    implementation project(':bVNC')
+    implementation project(':common')
+    implementation project(':remoteClientLib')
+    implementation (name: 'android-database-sqlcipher-4.5.4', ext: 'aar')
+    implementation 'com.google.android.material:material:1.13.0'
+}

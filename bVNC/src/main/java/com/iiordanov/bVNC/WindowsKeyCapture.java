@@ -18,7 +18,7 @@ final class WindowsKeyCapture {
     private final Map<Pair<Integer, Integer>, KeyEvent> pressed = new LinkedHashMap<>();
     private final Set<Pair<Integer, Integer>> awaitingRelease = new HashSet<>();
 
-    boolean onKeyEvent(KeyEvent event, boolean canStart, KeySender sender) {
+    boolean onKeyEvent(KeyEvent event, boolean canStart, boolean captureAltTab, KeySender sender) {
         int device = event.getDeviceId();
         int code = event.getKeyCode();
         Pair<Integer, Integer> key = Pair.create(device, code);
@@ -49,7 +49,13 @@ final class WindowsKeyCapture {
         boolean windowsChord = event.isMetaPressed()
                 && (pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_META_LEFT))
                     || pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_META_RIGHT)));
-        if (!canStart || (!windowsKey && !windowsChord)) {
+        boolean altKey = code == KeyEvent.KEYCODE_ALT_LEFT || code == KeyEvent.KEYCODE_ALT_RIGHT;
+        boolean altHeld = event.isAltPressed()
+                && (pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_ALT_LEFT))
+                    || pressed.containsKey(Pair.create(device, KeyEvent.KEYCODE_ALT_RIGHT)));
+        boolean altTabKey = code == KeyEvent.KEYCODE_TAB
+                || code == KeyEvent.KEYCODE_SHIFT_LEFT || code == KeyEvent.KEYCODE_SHIFT_RIGHT;
+        if (!canStart || !(windowsKey || windowsChord || (captureAltTab && (altKey || (altHeld && altTabKey))))) {
             return false;
         }
 

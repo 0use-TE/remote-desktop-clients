@@ -103,7 +103,7 @@ public class Utils {
     public static String[] standardPackageNames = {
             "com.iiordanov.bVNC", "com.iiordanov.freebVNC",
             "com.iiordanov.aRDP", "com.iiordanov.freeaRDP",
-            "com.iiordanov.aSPICE", "com.iiordanov.freeaSPICE"
+            "com.iiordanov.aSPICE", "com.iiordanov.freeaSPICE", "io.github.ouse.ouserdp"
     };
     private static AlertDialog alertDialog;
 
@@ -297,6 +297,10 @@ public class Utils {
     public static boolean isRdp(Context context) {
         String packageName = Utils.pName(context);
         return packageName.toLowerCase().contains("rdp");
+    }
+
+    public static boolean isOuseRdp(Context context) {
+        return "io.github.ouse.ouserdp".equals(context.getPackageName());
     }
 
     public static boolean isSpice(Context context) {

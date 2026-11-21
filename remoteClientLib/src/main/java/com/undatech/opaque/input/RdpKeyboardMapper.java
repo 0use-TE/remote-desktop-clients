@@ -573,6 +573,16 @@ public class RdpKeyboardMapper {
         listener.processVirtualKey(VK_LMENU, false);
     }
 
+    public void toggleWindowsOnScreenKeyboard() {
+        int windowsKey = VK_LWIN | VK_EXT_KEY;
+        listener.processVirtualKey(VK_LCONTROL, true);
+        listener.processVirtualKey(windowsKey, true);
+        listener.processVirtualKey(VK_KEY_O, true);
+        listener.processVirtualKey(VK_KEY_O, false);
+        listener.processVirtualKey(windowsKey, false);
+        listener.processVirtualKey(VK_LCONTROL, false);
+    }
+
     private boolean isModifierPressed() {
         return (shiftPressed || ctrlPressed || altPressed || winPressed);
     }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ouse_app_name" translatable="false">OuseRDP</string>
+    <string name="ouse_saved_connections">Saved computers</string>
+    <string name="ouse_add_computer">Add computer</string>
+    <string name="ouse_edit_computer">Edit computer</string>
+    <string name="ouse_empty_connections">Add a Windows PC to start a remote desktop session.</string>
+    <string name="ouse_address">PC address or host name</string>
+    <string name="ouse_address_error">Enter a host name or IP address, with an optional port.</string>
+    <string name="ouse_username">Windows username</string>
+    <string name="ouse_username_error">Enter a Windows username.</string>
+    <string name="ouse_password">Windows password</string>
+    <string name="ouse_connect">Connect</string>
+    <string name="ouse_connect_to">Connect to %1$s</string>
+    <string name="ouse_save">Save</string>
+    <string name="ouse_save_and_connect">Save and connect</string>
+    <string name="ouse_remove">Remove</string>
+    <string name="ouse_remove_computer">Remove %1$s from saved computers?</string>
+    <string name="ouse_keyboard_capture">OuseRDP keyboard shortcuts</string>
+    <string name="ouse_keyboard_capture_detail">Sends physical Win and Alt+Tab shortcuts to Windows while a connected OuseRDP session has focus.</string>
+    <string name="ouse_enable_shortcuts">Enable Win and Alt+Tab in Accessibility</string>
+    <string name="ouse_session_controls">Session controls</string>
+    <string name="ouse_windows_keyboard">Windows on-screen keyboard</string>
+    <string name="ouse_disconnect">Disconnect</string>
+    <string name="ouse_about">About</string>
+    <string name="ouse_credits">OuseRDP 0.1.0\nRemote desktop engine based on aRDP by Iordan Iordanov and the FreeRDP project.</string>
+    <string name="ouse_license">License</string>
+</resources>

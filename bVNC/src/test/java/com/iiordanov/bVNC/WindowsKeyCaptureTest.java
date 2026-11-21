@@ -3,9 +3,14 @@ package com.iiordanov.bVNC;
 import static android.view.KeyEvent.ACTION_DOWN;
 import static android.view.KeyEvent.ACTION_UP;
 import static android.view.KeyEvent.KEYCODE_E;
+import static android.view.KeyEvent.KEYCODE_ALT_LEFT;
+import static android.view.KeyEvent.KEYCODE_SHIFT_LEFT;
+import static android.view.KeyEvent.KEYCODE_TAB;
 import static android.view.KeyEvent.KEYCODE_META_LEFT;
 import static android.view.KeyEvent.KEYCODE_META_RIGHT;
 import static android.view.KeyEvent.META_META_ON;
+import static android.view.KeyEvent.META_ALT_ON;
+import static android.view.KeyEvent.META_SHIFT_ON;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -65,11 +70,27 @@ public class WindowsKeyCaptureTest {
         assertEquals(KEYCODE_META_LEFT, sent.get(3).getKeyCode());
 
         KeyEvent repeat = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_E, 1, META_META_ON, 1, 0);
-        assertTrue(capture.onKeyEvent(repeat, false, sent::add));
+        assertTrue(capture.onKeyEvent(repeat, false, false, sent::add));
         assertTrue(key(ACTION_UP, KEYCODE_E, META_META_ON, false));
         assertTrue(key(ACTION_UP, KEYCODE_META_LEFT, 0, false));
         assertFalse(key(ACTION_DOWN, KEYCODE_E, 0, false));
         assertEquals(4, sent.size());
+    }
+
+    @Test
+    public void capturesAltTabAndReverseTabOnlyWhenEnabled() {
+        assertFalse(key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_ALT_ON, true));
+        assertFalse(key(ACTION_DOWN, KEYCODE_TAB, META_ALT_ON, true));
+
+        assertTrue(key(ACTION_DOWN, KEYCODE_ALT_LEFT, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_TAB, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_TAB, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_SHIFT_LEFT, META_ALT_ON | META_SHIFT_ON, true, true));
+        assertTrue(key(ACTION_DOWN, KEYCODE_TAB, META_ALT_ON | META_SHIFT_ON, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_TAB, META_ALT_ON | META_SHIFT_ON, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_SHIFT_LEFT, META_ALT_ON, true, true));
+        assertTrue(key(ACTION_UP, KEYCODE_ALT_LEFT, 0, true, true));
+        assertEquals(8, sent.size());
     }
 
     @Test
@@ -92,7 +113,11 @@ public class WindowsKeyCaptureTest {
     }
 
     private boolean key(int action, int code, int metaState, boolean canStart) {
+        return key(action, code, metaState, canStart, false);
+    }
+
+    private boolean key(int action, int code, int metaState, boolean canStart, boolean captureAltTab) {
         KeyEvent event = new KeyEvent(0, 0, action, code, 0, metaState, 1, 0);
-        return capture.onKeyEvent(event, canStart, sent::add);
+        return capture.onKeyEvent(event, canStart, captureAltTab, sent::add);
     }
 }

@@ -514,6 +514,12 @@ public class ConnectionBean extends AbstractConnectionBean implements Comparable
         setDefaultProtocolAndSshPorts();
     }
 
+    public void deleteSavedConnection(Context context) {
+        if (!isNew() && !ephemeral) {
+            Database.runWritable(context, this::Gen_delete);
+        }
+    }
+
     private synchronized void save(SQLiteDatabase database) {
         Log.d(TAG, "Save called with database");
         ContentValues values = Gen_getValues();

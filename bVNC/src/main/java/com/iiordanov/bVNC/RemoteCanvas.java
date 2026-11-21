@@ -819,8 +819,17 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
         }
     }
 
+    private boolean remoteKeyboardOnly;
+
+    void setRemoteKeyboardOnly(boolean remoteKeyboardOnly) {
+        this.remoteKeyboardOnly = remoteKeyboardOnly;
+    }
+
     @Override
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
+        if (remoteKeyboardOnly) {
+            return null;
+        }
         Log.d(TAG, "onCreateInputConnection called");
         BaseInputConnection bic = new BaseInputConnection(this, false);
         outAttrs.actionLabel = null;

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ouse_saved_connections">已保存的电脑</string>
+    <string name="ouse_add_computer">添加电脑</string>
+    <string name="ouse_edit_computer">编辑电脑</string>
+    <string name="ouse_empty_connections">添加一台 Windows 电脑，开始远程桌面连接。</string>
+    <string name="ouse_address">电脑地址或主机名</string>
+    <string name="ouse_address_error">请输入主机名或 IP 地址，可以附带端口。</string>
+    <string name="ouse_username">Windows 用户名</string>
+    <string name="ouse_username_error">请输入 Windows 用户名。</string>
+    <string name="ouse_password">Windows 密码</string>
+    <string name="ouse_connect">连接</string>
+    <string name="ouse_connect_to">连接到 %1$s</string>
+    <string name="ouse_save">保存</string>
+    <string name="ouse_save_and_connect">保存并连接</string>
+    <string name="ouse_remove">移除</string>
+    <string name="ouse_remove_computer">从已保存的电脑中移除 %1$s？</string>
+    <string name="ouse_keyboard_capture">OuseRDP 键盘快捷键</string>
+    <string name="ouse_keyboard_capture_detail">当已连接的 OuseRDP 会话获得焦点时，将实体键盘的 Win 键及 Alt+Tab 等快捷键发送到 Windows。</string>
+    <string name="ouse_enable_shortcuts">在无障碍设置中启用 Win 和 Alt+Tab</string>
+    <string name="ouse_session_controls">会话控制</string>
+    <string name="ouse_windows_keyboard">Windows 屏幕键盘</string>
+    <string name="ouse_disconnect">断开连接</string>
+    <string name="ouse_about">关于</string>
+    <string name="ouse_credits">OuseRDP 0.1.0\n远程桌面引擎基于 Iordan Iordanov 的 aRDP 和 FreeRDP 项目。</string>
+    <string name="ouse_license">许可证</string>
+</resources>

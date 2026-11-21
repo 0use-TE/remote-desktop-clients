@@ -289,6 +289,7 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
         canvasLayout = findViewById(R.id.canvasLayout);
         canvas = findViewById(R.id.canvas);
+        canvas.setRemoteKeyboardOnly(usesCompactSessionUi());
         keyboardIconForAndroidTv = findViewById(R.id.keyboardIconForAndroidTv);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -412,6 +413,10 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         panner = new Panner(this, handler);
 
         toolbar = findViewById(R.id.toolbar);
+        if (usesCompactSessionUi()) {
+            toolbar.setVisibility(View.GONE);
+            return;
+        }
         toolbar.setTitle("");
         toolbar.setOnGenericMotionListener(ignoringMouseInputListener);
         toolbar.getBackground().setAlpha(64);
@@ -453,6 +458,10 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
             }
         } else {
             Log.d(TAG, "onGlobalLayout: Found r.top to be non-zero");
+        }
+
+        if (usesCompactSessionUi()) {
+            return;
         }
 
         // Enable/show the toolbar if the keyboard is gone, and disable/hide otherwise.
@@ -660,6 +669,10 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
     private void initializeExtraKeysView() {
         extraKeysToolbar = findViewById(R.id.extraKeysToolbar);
+        if (usesCompactSessionUi()) {
+            extraKeysToolbar.setVisibility(View.GONE);
+            return;
+        }
         float extraKeysAlpha = Color.alpha(ContextCompat.getColor(this, R.color.extra_keys_background)) / 255f;
         extraKeysToolbar.setAlpha(extraKeysAlpha);
 
@@ -1199,6 +1212,7 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     }
 
     private void disconnectAndFinishActivity() {
+        WindowsKeyCaptureService.releaseKeys(this);
         remoteConnection.closeConnection();
         Utils.justFinish(this);
     }
@@ -1356,6 +1370,9 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     }
 
     public void showActionBar() {
+        if (usesCompactSessionUi()) {
+            return;
+        }
         handler.removeCallbacks(actionBarShower);
         handler.postAtTime(actionBarShower, SystemClock.uptimeMillis() + 50);
         handler.removeCallbacks(actionBarHider);
@@ -1363,6 +1380,9 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     }
 
     public void showKeyboardIcon() {
+        if (usesCompactSessionUi()) {
+            return;
+        }
         handler.removeCallbacks(keyboardIconShower);
         handler.postAtTime(keyboardIconShower, SystemClock.uptimeMillis() + 50);
         handler.removeCallbacks(actionBarHider);
@@ -1389,6 +1409,9 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
     }
 
     public void showKeyboard() {
+        if (usesCompactSessionUi()) {
+            return;
+        }
         Log.i(TAG, "Showing keyboard and hiding action bar");
         canvas.requestFocus();
         Utils.showKeyboard(this, canvas);
@@ -1401,7 +1424,10 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         canvas.requestFocus();
         Utils.hideKeyboard(this, getCurrentFocus());
         softKeyboardUp = false;
-        Objects.requireNonNull(getSupportActionBar()).hide();
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.hide();
+        }
     }
 
     public void hideKeyboardAndExtraKeys() {
@@ -1444,6 +1470,21 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
     public RemoteConnection getRemoteConnection() {
         return remoteConnection;
+    }
+
+    protected boolean usesCompactSessionUi() {
+        return false;
+    }
+
+    protected boolean capturesAltTab() {
+        return false;
+    }
+
+    protected void showRemoteWindowsKeyboard() {
+        if (canSendCapturedKeys()) {
+            WindowsKeyCaptureService.releaseKeys(this);
+            ((RemoteRdpKeyboard) remoteConnection.getKeyboard()).showWindowsKeyboard();
+        }
     }
 
     public Handler getHandler() { return handler; }

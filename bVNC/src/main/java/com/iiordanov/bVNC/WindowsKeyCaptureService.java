@@ -17,7 +17,7 @@ public final class WindowsKeyCaptureService extends AccessibilityService
     private static final WindowsKeyCapture capture = new WindowsKeyCapture();
     private static RemoteCanvasActivity session;
 
-    static boolean isEnabled(Context context) {
+    public static boolean isEnabled(Context context) {
         AccessibilityManager manager = (AccessibilityManager)
                 context.getSystemService(Context.ACCESSIBILITY_SERVICE);
         ComponentName component = new ComponentName(context, WindowsKeyCaptureService.class);
@@ -74,6 +74,7 @@ public final class WindowsKeyCaptureService extends AccessibilityService
                 && device != null && !device.isVirtual()
                 && device.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC;
         return capture.onKeyEvent(event, sessionActive && physicalKeyboard,
+                session != null && session.capturesAltTab(),
                 WindowsKeyCaptureService::sendKey);
     }
 

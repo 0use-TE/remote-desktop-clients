@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ouse_background">#111722</color>
+    <color name="ouse_surface">#1B2433</color>
+    <color name="ouse_primary">#A8C7FA</color>
+    <color name="ouse_primary_ink">#0E2549</color>
+    <color name="ouse_text">#EFF4FF</color>
+    <color name="ouse_secondary_text">#AEBBD0</color>
+    <style name="OuseTheme" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/ouse_primary</item>
+        <item name="colorOnPrimary">@color/ouse_primary_ink</item>
+        <item name="colorSecondary">@color/ouse_primary</item>
+        <item name="colorSurface">@color/ouse_surface</item>
+        <item name="colorOnSurface">@color/ouse_text</item>
+        <item name="android:windowBackground">@color/ouse_background</item>
+        <item name="android:statusBarColor">@color/ouse_background</item>
+        <item name="android:navigationBarColor">@color/ouse_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

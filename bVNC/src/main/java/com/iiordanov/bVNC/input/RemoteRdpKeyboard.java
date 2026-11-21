@@ -7,6 +7,7 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 
 import com.iiordanov.bVNC.App;
+import com.iiordanov.bVNC.Utils;
 import com.undatech.opaque.InputCarriable;
 import com.undatech.opaque.RdpCommunicator;
 import com.undatech.opaque.Viewable;
@@ -19,6 +20,7 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
     protected Viewable canvas;
     protected InputCarriable remoteInput;
     private RdpCommunicator rdpcomm;
+    private final boolean scancodesOnly;
 
     public RemoteRdpKeyboard(
             RdpCommunicator r, Viewable v, InputCarriable i, Handler h,
@@ -28,6 +30,7 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
         rdpcomm = r;
         canvas = v;
         remoteInput = i;
+        scancodesOnly = Utils.isOuseRdp(context);
         keyboardMapper = new RdpKeyboardMapper(preferSendingUnicode, debugLog);
         keyboardMapper.init(context);
         keyboardMapper.reset((RdpKeyboardMapper.KeyProcessingListener) r);
@@ -39,6 +42,11 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
 
     public void processCapturedWindowsKey(KeyEvent event) {
         processLocalKeyEvent(event.getKeyCode(), event, 0, true);
+    }
+
+    public void showWindowsKeyboard() {
+        rdpcomm.writeKeyEvent(0, 0, false);
+        keyboardMapper.toggleWindowsOnScreenKeyboard();
     }
 
     private boolean processLocalKeyEvent(int keyCode, KeyEvent evt, int additionalMetaState,
@@ -76,7 +84,7 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
                 lastDownMetaState = 0;
             }
 
-            if (keyCode == 0 && evt.getCharacters() != null /*KEYCODE_UNKNOWN*/) {
+            if (!scancodesOnly && keyCode == 0 && evt.getCharacters() != null /*KEYCODE_UNKNOWN*/) {
                 String s = evt.getCharacters();
                 debugLog(App.debugLog, TAG, "processLocalKeyEvent: getCharacters: " + s);
 
@@ -90,7 +98,8 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
                 return true;
             } else {
                 // Send the key to be processed through the KeyboardMapper.
-                return keyboardMapper.processAndroidKeyEvent(evt, isRepeat, capturedWindowsKey);
+                return keyboardMapper.processAndroidKeyEvent(evt, isRepeat,
+                        capturedWindowsKey || scancodesOnly);
             }
         } else {
             return false;
