@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.iiordanov.bVNC.App
 import com.iiordanov.bVNC.COLORMODEL
+import com.iiordanov.bVNC.OuseDesktopPreferences
 import com.iiordanov.bVNC.Utils
 import com.iiordanov.bVNC.input.RemoteRdpKeyboard
 import com.iiordanov.bVNC.input.RemoteRdpPointer
@@ -52,8 +53,14 @@ class RemoteRdpConnection(
         val rdpPort = getRemoteProtocolPort(connection.port)
         val gatewayPort = getGatewayPort(connection.rdpGatewayPort)
         canvas.waitUntilInflated()
-        val remoteWidth = canvas.getRemoteWidth(canvas.width, canvas.height)
-        val remoteHeight = canvas.getRemoteHeight(canvas.width, canvas.height)
+        val display = if (Utils.isOuseRdp(context)) {
+            OuseDesktopPreferences.displayFor(context, canvas.width, canvas.height)
+        } else {
+            null
+        }
+        val remoteWidth = display?.width ?: canvas.getRemoteWidth(canvas.width, canvas.height)
+        val remoteHeight = display?.height ?: canvas.getRemoteHeight(canvas.width, canvas.height)
+        val desktopScale = display?.scale ?: connection.desktopScalePercentage
         rdpComm!!.setConnectionParameters(
             address, rdpPort,
             connection.rdpGatewayEnabled, gatewayAddress, gatewayPort,
@@ -65,7 +72,7 @@ class RemoteRdpConnection(
             connection.redirectSdCard, connection.consoleMode,
             connection.remoteSoundType, connection.enableRecording,
             connection.remoteFx, connection.enableGfx, connection.enableGfxH264,
-            connection.rdpColor, connection.desktopScalePercentage, App.debugLog
+            connection.rdpColor, desktopScale, App.debugLog
         )
         rdpComm!!.connect()
     }

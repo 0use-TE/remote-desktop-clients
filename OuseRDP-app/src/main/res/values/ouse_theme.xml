@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <item type="id" name="ouse_settings_content" />
     <color name="ouse_background">#111722</color>
     <color name="ouse_surface">#1B2433</color>
     <color name="ouse_primary">#A8C7FA</color>

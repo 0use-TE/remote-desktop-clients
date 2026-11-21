@@ -17,11 +17,23 @@
     <string name="ouse_remove_computer">从已保存的电脑中移除 %1$s？</string>
     <string name="ouse_keyboard_capture">OuseRDP 键盘快捷键</string>
     <string name="ouse_keyboard_capture_detail">当已连接的 OuseRDP 会话获得焦点时，将实体键盘的 Win 键及 Alt+Tab 等快捷键发送到 Windows。</string>
-    <string name="ouse_enable_shortcuts">在无障碍设置中启用 Win 和 Alt+Tab</string>
-    <string name="ouse_session_controls">会话控制</string>
+    <string name="ouse_settings">设置</string>
+    <string name="ouse_back">返回</string>
+    <string name="ouse_display_defaults">显示 · 下次连接时生效</string>
+    <string name="ouse_desktop_resolution">远程桌面分辨率</string>
+    <string name="ouse_windows_scale">Windows 文字和应用大小</string>
+    <string name="ouse_show_windows_while_dragging">拖动时显示窗口内容</string>
+    <string name="ouse_input_defaults">键盘</string>
+    <string name="ouse_shortcuts_enabled">已启用 · 打开 Android 无障碍设置</string>
+    <string name="ouse_shortcuts_disabled">未启用 · 打开 Android 无障碍设置</string>
+    <string name="ouse_send_alt_tab">将 Alt+Tab 发给 Windows</string>
+    <string name="ouse_send_alt_tab_detail">需要启用 OuseRDP 无障碍服务</string>
     <string name="ouse_windows_keyboard">Windows 屏幕键盘</string>
     <string name="ouse_disconnect">断开连接</string>
     <string name="ouse_about">关于</string>
-    <string name="ouse_credits">OuseRDP 0.1.0\n远程桌面引擎基于 Iordan Iordanov 的 aRDP 和 FreeRDP 项目。</string>
+    <string name="ouse_credits">远程桌面引擎基于 Iordan Iordanov 的 aRDP 和 FreeRDP 项目。</string>
     <string name="ouse_license">许可证</string>
+    <string name="ouse_automatic">自动</string>
+    <string name="ouse_resolution_native">与屏幕分辨率一致</string>
+    <string name="ouse_resolution_1920">长边最高 1920 像素</string>
 </resources>

@@ -1,5 +1,6 @@
 package io.github.ouse.ouserdp;
 
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -14,10 +15,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.iiordanov.bVNC.OuseDesktopPreferences;
 import com.iiordanov.bVNC.RemoteCanvasActivity;
 
 public final class SessionActivity extends RemoteCanvasActivity {
     private ImageButton controls;
+    private boolean captureAltTab;
 
     @Override
     protected boolean usesCompactSessionUi() {
@@ -26,7 +29,13 @@ public final class SessionActivity extends RemoteCanvasActivity {
 
     @Override
     protected boolean capturesAltTab() {
-        return true;
+        return captureAltTab;
+    }
+
+    @Override
+    protected void onResume() {
+        captureAltTab = OuseDesktopPreferences.captureAltTab(this);
+        super.onResume();
     }
 
     @Override
@@ -34,8 +43,8 @@ public final class SessionActivity extends RemoteCanvasActivity {
         super.onCreate(savedInstanceState);
         FrameLayout canvas = (FrameLayout) getCanvas().getParent();
         controls = new ImageButton(this);
-        controls.setImageResource(R.drawable.ouse_controls_icon);
-        controls.setContentDescription(getString(R.string.ouse_session_controls));
+        controls.setImageResource(R.drawable.ouse_settings_icon);
+        controls.setContentDescription(getString(R.string.ouse_settings));
         controls.setFocusable(false);
 
         GradientDrawable background = new GradientDrawable();
@@ -66,6 +75,11 @@ public final class SessionActivity extends RemoteCanvasActivity {
 
     private void showControls() {
         PopupMenu menu = new PopupMenu(this, controls);
+        menu.getMenu().add(R.string.ouse_settings)
+                .setOnMenuItemClickListener(item -> {
+                    startActivity(new Intent(this, SettingsActivity.class));
+                    return true;
+                });
         menu.getMenu().add(R.string.ouse_windows_keyboard)
                 .setOnMenuItemClickListener(item -> {
                     showRemoteWindowsKeyboard();

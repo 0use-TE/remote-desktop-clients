@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory android:title="@string/ouse_display_defaults">
+        <ListPreference
+            android:key="ouseMaxDesktopEdge"
+            android:title="@string/ouse_desktop_resolution"
+            android:entries="@array/ouse_resolution_options"
+            android:entryValues="@array/ouse_resolution_values"
+            android:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:key="ouseWindowsScale"
+            android:title="@string/ouse_windows_scale"
+            android:entries="@array/ouse_scale_options"
+            android:entryValues="@array/ouse_scale_values"
+            android:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            android:key="ouseShowWindowsWhileDragging"
+            android:title="@string/ouse_show_windows_while_dragging"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="@string/ouse_input_defaults">
+        <Preference android:key="ouseShortcutSetup" android:title="@string/ouse_keyboard_capture" />
+        <SwitchPreferenceCompat
+            android:key="ouseCaptureAltTab"
+            android:title="@string/ouse_send_alt_tab"
+            android:defaultValue="true"
+            android:summary="@string/ouse_send_alt_tab_detail" />
+    </PreferenceCategory>
+    <Preference
+        android:key="ouseAbout"
+        android:title="@string/ouse_about" />
+</PreferenceScreen>

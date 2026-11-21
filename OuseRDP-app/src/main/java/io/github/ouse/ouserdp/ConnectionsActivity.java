@@ -4,12 +4,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -25,14 +24,11 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.iiordanov.bVNC.ConnectionBean;
 import com.iiordanov.bVNC.Constants;
+import com.iiordanov.bVNC.OuseDesktopPreferences;
 import com.iiordanov.bVNC.Utils;
-import com.iiordanov.bVNC.WindowsKeyCaptureService;
 import com.undatech.opaque.Connection;
 import com.undatech.opaque.util.ConnectionLoader;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -43,7 +39,6 @@ public final class ConnectionsActivity extends AppCompatActivity {
     private static final String LAST_CONNECTION = "lastConnection";
     private static final int DEFAULT_RDP_PORT = 3389;
     private LinearLayout list;
-    private MaterialButton shortcutSetup;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,16 +70,13 @@ public final class ConnectionsActivity extends AppCompatActivity {
         TextView title = text(getString(R.string.ouse_app_name), 32, R.color.ouse_text);
         title.setTypeface(null, Typeface.BOLD);
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        header.addView(button(R.string.ouse_about, this::showAbout, true));
+        header.addView(button(R.string.ouse_settings,
+                () -> startActivity(new Intent(this, SettingsActivity.class)), true));
 
         MaterialButton add = button(R.string.ouse_add_computer, () -> edit(null), false);
         LinearLayout.LayoutParams action = new LinearLayout.LayoutParams(-2, -2);
         action.topMargin = dp(18);
         column.addView(add, action);
-
-        shortcutSetup = button(R.string.ouse_enable_shortcuts,
-                () -> startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)), true);
-        column.addView(shortcutSetup, new LinearLayout.LayoutParams(-2, -2));
 
         TextView heading = text(getString(R.string.ouse_saved_connections), 18, R.color.ouse_text);
         heading.setTypeface(null, Typeface.BOLD);
@@ -109,7 +101,6 @@ public final class ConnectionsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        shortcutSetup.setVisibility(WindowsKeyCaptureService.isEnabled(this) ? View.GONE : View.VISIBLE);
         refreshConnections();
     }
 
@@ -240,11 +231,12 @@ public final class ConnectionsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private static void applyDesktopDefaults(ConnectionBean connection) {
+    private void applyDesktopDefaults(ConnectionBean connection) {
         connection.setKeepPassword(false);
         connection.setExtraKeysToggleType(Constants.EXTRA_KEYS_OFF);
         connection.setPreferSendingUnicode(false);
-        connection.setWindowContents(true);
+        connection.setScaleMode(ImageView.ScaleType.FIT_CENTER);
+        connection.setWindowContents(OuseDesktopPreferences.showWindowsWhileDragging(this));
         connection.setDesktopBackground(true);
         connection.setFontSmoothing(true);
         connection.setVisualStyles(true);
@@ -284,30 +276,6 @@ public final class ConnectionsActivity extends AppCompatActivity {
                     refreshConnections();
                 })
                 .show();
-    }
-
-    private void showAbout() {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.ouse_app_name)
-                .setMessage(R.string.ouse_credits)
-                .setNeutralButton(R.string.ouse_license, (dialog, which) -> showLicense())
-                .setPositiveButton(android.R.string.ok, null)
-                .show();
-    }
-
-    private void showLicense() {
-        try (InputStream input = getAssets().open("LICENSE");
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[4096];
-            int read;
-            while ((read = input.read(buffer)) != -1) {
-                output.write(buffer, 0, read);
-            }
-            new MaterialAlertDialogBuilder(this).setTitle(R.string.ouse_license)
-                    .setMessage(output.toString("UTF-8")).setPositiveButton(android.R.string.ok, null).show();
-        } catch (IOException error) {
-            android.util.Log.e("OuseRDP", "Unable to read the bundled license", error);
-        }
     }
 
     private LinearLayout dialogForm() {
