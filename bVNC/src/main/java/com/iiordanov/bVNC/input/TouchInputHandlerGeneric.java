@@ -299,6 +299,12 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
     protected void sendScrollEvents(int x, int y, int meta) {
         GeneralUtils.debugLog(debugLogging, TAG, "sendScrollEvents");
 
+        if (useControlledScrolling && remoteInput.getPointer() instanceof RemoteRdpPointer pointer) {
+            int steps = (int) Math.min(swipeSpeed, maxSwipeSpeed);
+            pointer.sendWheelSteps(scrollUp ? steps : scrollDown ? -steps : 0, meta);
+            return;
+        }
+
         int numEvents = 0;
         while (numEvents < swipeSpeed && numEvents < maxSwipeSpeed) {
             if (scrollDown) {
@@ -617,6 +623,9 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
                         (xCurrentFocus < (xInitialFocus - startSwipeDist)) ||
                         (xCurrentFocus > (xInitialFocus + startSwipeDist))) {
                     inSwiping = true;
+                    if (useControlledScrolling) {
+                        inScrolling = true;
+                    }
                     xPreviousFocus = xCurrentFocus;
                     yPreviousFocus = yCurrentFocus;
                 }
@@ -741,6 +750,7 @@ abstract class TouchInputHandlerGeneric extends GestureDetector.SimpleOnGestureL
         if (useControlledScrolling) {
             if (!fling && e2.getPointerCount() == 1 && !secondPointerWasDown
                     && !inSwiping && !inScaling && !scalingJustFinished) {
+                inScrolling = true;
                 int steps = touchSteps.take(-distanceY / baseSwipeDist);
                 sendVerticalScroll(steps, getX(e1), getY(e1), e2.getMetaState());
             }

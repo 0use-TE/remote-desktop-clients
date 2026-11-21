@@ -166,6 +166,13 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     }
 
+    public synchronized void writeWheelEvent(int x, int y, int metaState, int wheelFlags) {
+        this.metaState = metaState;
+        sendModifierKeys(true);
+        sendRemoteMouseEventOnNewThread(x, y, wheelFlags);
+        sendModifierKeys(false);
+    }
+
     private void sendRemoteMouseEventOnNewThread(int x, int y, int pointerMask) {
         runMethodOnInputThread(() -> sendRemoteMouseEvent(x, y, pointerMask));
     }

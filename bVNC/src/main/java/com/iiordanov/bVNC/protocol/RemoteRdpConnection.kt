@@ -30,15 +30,16 @@ class RemoteRdpConnection(
      */
     private fun initializeRdpConnection() {
         Log.i(tag, "initializeRdpConnection: Initializing RDP connection.")
-        rdpComm = RdpCommunicator(
+        val communicator = RdpCommunicator(
             connection, context, handler, canvas,
             connection.connectionConfigFile, connection.userName, connection.rdpDomain, connection.password,
             App.debugLog, isRemoteToLocalClipboardIntegrationEnabled
         )
-        rfbConn = rdpComm
-        pointer = RemoteRdpPointer(rfbConn, context, this, canvas, handler, !connection.useDpadAsArrows, App.debugLog)
+        rdpComm = communicator
+        rfbConn = communicator
+        pointer = RemoteRdpPointer(communicator, context, this, canvas, handler, !connection.useDpadAsArrows, App.debugLog)
         keyboard = RemoteRdpKeyboard(
-            rdpComm, canvas, this, handler, App.debugLog,
+            communicator, canvas, this, handler, App.debugLog,
             connection.preferSendingUnicode
         )
     }

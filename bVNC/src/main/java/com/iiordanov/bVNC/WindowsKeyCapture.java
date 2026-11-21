@@ -20,7 +20,7 @@ final class WindowsKeyCapture {
 
     boolean onKeyEvent(KeyEvent event, boolean canStart, boolean captureExtendedShortcuts, KeySender sender) {
         int device = event.getDeviceId();
-        int code = captureExtendedShortcuts ? resolveFunctionKey(event) : event.getKeyCode();
+        int code = captureExtendedShortcuts ? resolveDesktopKey(event) : event.getKeyCode();
         Pair<Integer, Integer> key = Pair.create(device, code);
         if (event.getAction() == KeyEvent.ACTION_UP) {
             if (awaitingRelease.remove(key)) {
@@ -57,7 +57,8 @@ final class WindowsKeyCapture {
         boolean altShortcutKey = code == KeyEvent.KEYCODE_TAB || code == KeyEvent.KEYCODE_MUTE
                 || code == KeyEvent.KEYCODE_SHIFT_LEFT || code == KeyEvent.KEYCODE_SHIFT_RIGHT;
         boolean extendedShortcut = captureExtendedShortcuts
-                && (isFunctionKey(code) || altKey || (altHeld && altShortcutKey));
+                && (code == KeyEvent.KEYCODE_ESCAPE || isFunctionKey(code)
+                    || altKey || (altHeld && altShortcutKey));
         if (!canStart || !(windowsKey || windowsChord || extendedShortcut)) {
             return false;
         }
@@ -76,8 +77,18 @@ final class WindowsKeyCapture {
                 || (code >= KeyEvent.KEYCODE_F13 && code <= KeyEvent.KEYCODE_F24);
     }
 
-    private static int resolveFunctionKey(KeyEvent event) {
+    static int resolveEscape(KeyEvent event) {
         int code = event.getKeyCode();
+        // Linux KEY_ESC is 1. KEY_BACK (158) and Android gestures retain their usual behavior.
+        if ((code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_UNKNOWN)
+                && event.getScanCode() == 1) {
+            return KeyEvent.KEYCODE_ESCAPE;
+        }
+        return code;
+    }
+
+    private static int resolveDesktopKey(KeyEvent event) {
+        int code = resolveEscape(event);
         switch (code) {
             case KeyEvent.KEYCODE_UNKNOWN:
             case KeyEvent.KEYCODE_BRIGHTNESS_DOWN:
@@ -110,7 +121,7 @@ final class WindowsKeyCapture {
         return code;
     }
 
-    private static KeyEvent withKeyCode(KeyEvent event, int keyCode) {
+    static KeyEvent withKeyCode(KeyEvent event, int keyCode) {
         if (event.getKeyCode() == keyCode) {
             return event;
         }

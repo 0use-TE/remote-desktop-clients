@@ -8,14 +8,9 @@ import android.os.Bundle;
 import android.os.Build;
 import android.view.Gravity;
 import android.view.PointerIcon;
-import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.PopupMenu;
-
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.iiordanov.bVNC.RemoteCanvasActivity;
 
@@ -36,13 +31,17 @@ public final class SessionActivity extends RemoteCanvasActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         FrameLayout canvas = (FrameLayout) getCanvas().getParent();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            getCanvas().setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_NULL));
-        }
         controls = new ImageButton(this);
         controls.setImageResource(R.drawable.ouse_settings_icon);
         controls.setContentDescription(getString(R.string.ouse_settings));
         controls.setFocusable(false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            PointerIcon hidden = PointerIcon.getSystemIcon(this, PointerIcon.TYPE_NULL);
+            getWindow().getDecorView().setPointerIcon(hidden);
+            canvas.setPointerIcon(hidden);
+            getCanvas().setPointerIcon(hidden);
+            controls.setPointerIcon(hidden);
+        }
 
         GradientDrawable background = new GradientDrawable();
         background.setColor(0xCC172231);
@@ -50,24 +49,8 @@ public final class SessionActivity extends RemoteCanvasActivity {
         controls.setBackground(new RippleDrawable(ColorStateList.valueOf(0x55FFFFFF), background, null));
         controls.setOnClickListener(view -> showControls());
 
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(44), dp(44),
-                Gravity.TOP | Gravity.END);
-        params.topMargin = dp(12);
-        params.setMarginEnd(dp(12));
-        canvas.addView(controls, params);
-        ViewCompat.setOnApplyWindowInsetsListener(controls, (view, insets) -> {
-            Insets cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout());
-            boolean rtl = view.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
-            int top = dp(12) + cutout.top;
-            int end = dp(12) + (rtl ? cutout.left : cutout.right);
-            if (params.topMargin != top || params.getMarginEnd() != end) {
-                params.topMargin = top;
-                params.setMarginEnd(end);
-                view.setLayoutParams(params);
-            }
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(controls);
+        canvas.addView(controls, new FrameLayout.LayoutParams(dp(44), dp(44), Gravity.TOP | Gravity.START));
+        new SessionControlsPosition(canvas, controls, dp(12));
     }
 
     private void showControls() {

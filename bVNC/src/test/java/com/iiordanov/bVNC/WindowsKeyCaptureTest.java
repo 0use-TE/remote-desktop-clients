@@ -3,6 +3,8 @@ package com.iiordanov.bVNC;
 import static android.view.KeyEvent.ACTION_DOWN;
 import static android.view.KeyEvent.ACTION_UP;
 import static android.view.KeyEvent.KEYCODE_E;
+import static android.view.KeyEvent.KEYCODE_BACK;
+import static android.view.KeyEvent.KEYCODE_ESCAPE;
 import static android.view.KeyEvent.KEYCODE_F1;
 import static android.view.KeyEvent.KEYCODE_F12;
 import static android.view.KeyEvent.KEYCODE_F13;
@@ -138,6 +140,22 @@ public class WindowsKeyCaptureTest {
         assertTrue(capture.onKeyEvent(KeyEvent.changeAction(function, ACTION_UP), true, true, sent::add));
         assertEquals(KEYCODE_F12, sent.get(0).getKeyCode());
         assertEquals(KEYCODE_F12, sent.get(1).getKeyCode());
+    }
+
+    @Test
+    public void forwardsEscapeAndOnlyRemapsBackWhenItsScanCodeIsEscape() {
+        KeyEvent escape = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_ESCAPE, 0, 0, 1, 1);
+        assertTrue(capture.onKeyEvent(escape, true, true, sent::add));
+        assertTrue(capture.onKeyEvent(KeyEvent.changeAction(escape, ACTION_UP), true, true, sent::add));
+        KeyEvent remapped = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_BACK, 0, 0, 1, 1);
+        assertTrue(capture.onKeyEvent(remapped, true, true, sent::add));
+        assertTrue(capture.onKeyEvent(KeyEvent.changeAction(remapped, ACTION_UP), true, true, sent::add));
+        KeyEvent back = new KeyEvent(0, 0, ACTION_DOWN, KEYCODE_BACK, 0, 0, 1, 158);
+        assertFalse(capture.onKeyEvent(back, true, true, sent::add));
+        assertEquals(4, sent.size());
+        for (KeyEvent event : sent) {
+            assertEquals(KEYCODE_ESCAPE, event.getKeyCode());
+        }
     }
 
     @Test

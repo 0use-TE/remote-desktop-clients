@@ -4,7 +4,7 @@ import android.content.Context;
 import android.os.Handler;
 
 import com.undatech.opaque.InputCarriable;
-import com.undatech.opaque.RfbConnectable;
+import com.undatech.opaque.RdpCommunicator;
 import com.undatech.opaque.Viewable;
 import com.undatech.opaque.util.GeneralUtils;
 
@@ -23,12 +23,14 @@ public class RemoteRdpPointer extends RemotePointer {
     private static final int MOUSE_BUTTON_MIDDLE = 0x4000; // 16384
     private static final int MOUSE_BUTTON_SCROLL_UP = POINTER_FLAGS_WHEEL | 0x0078;
     private static final int MOUSE_BUTTON_SCROLL_DOWN = POINTER_FLAGS_WHEEL | POINTER_FLAGS_WHEEL_NEGATIVE | 0x0088;
+    private final RdpCommunicator rdp;
 
     public RemoteRdpPointer(
-            RfbConnectable rfbConnectable, Context context, InputCarriable remoteInput,
+            RdpCommunicator rdp, Context context, InputCarriable remoteInput,
             Viewable canvas, Handler handler, boolean useDpadAsPointer, boolean debugLogging
     ) {
-        super(rfbConnectable, context, remoteInput, canvas, handler, useDpadAsPointer, debugLogging);
+        super(rdp, context, remoteInput, canvas, handler, useDpadAsPointer, debugLogging);
+        this.rdp = rdp;
     }
 
     private void sendButtonDownOrMoveButtonDown(int x, int y, int metaState) {
@@ -67,6 +69,17 @@ public class RemoteRdpPointer extends RemotePointer {
     public void scrollDown(int x, int y, int metaState) {
         pointerMask = MOUSE_BUTTON_SCROLL_DOWN | POINTER_DOWN_MASK;
         sendPointerEvent(x, y, metaState, false);
+    }
+
+    void sendWheelSteps(int steps, int metaState) {
+        if (steps == 0) {
+            return;
+        }
+        int flags = steps > 0 ? MOUSE_BUTTON_SCROLL_UP : MOUSE_BUTTON_SCROLL_DOWN;
+        int combinedMetaState = metaState | remoteInput.getKeyboard().getMetaState();
+        for (int i = 0; i < Math.abs(steps); i++) {
+            rdp.writeWheelEvent(pointerX, pointerY, combinedMetaState, flags);
+        }
     }
 
     @Override

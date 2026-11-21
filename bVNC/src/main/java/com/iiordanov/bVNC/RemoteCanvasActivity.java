@@ -1475,6 +1475,19 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         return remoteConnection;
     }
 
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int action = event.getAction();
+        if (usesCompactSessionUi() && canSendCapturedKeys()
+                && (action == KeyEvent.ACTION_DOWN || action == KeyEvent.ACTION_UP)
+                && event.isFromSource(android.view.InputDevice.SOURCE_KEYBOARD)
+                && WindowsKeyCapture.resolveEscape(event) == KeyEvent.KEYCODE_ESCAPE) {
+            sendCapturedKey(WindowsKeyCapture.withKeyCode(event, KeyEvent.KEYCODE_ESCAPE));
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
     protected boolean usesCompactSessionUi() {
         return false;
     }
