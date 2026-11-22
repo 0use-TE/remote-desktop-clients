@@ -732,17 +732,30 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     @Override
     public void OnGraphicsUpdate(int x, int y, int width, int height) {
-        //Log.v(TAG, "OnGraphicsUpdate called: " + x +", " + y + " + " + width + "x" + height );
-        if (!receivedFirstGraphicsFrame) {
-            receivedFirstGraphicsFrame = true;
-            handler.sendEmptyMessage(RemoteClientLibConstants.GRAPHICS_FIRST_FRAME_RECEIVED);
+        if (disconnectRequested) return;
+        SessionState currentSession = session;
+        if (viewable == null || currentSession == null || width <= 0 || height <= 0) return;
+        Bitmap bitmap = viewable.getBitmap();
+        if (bitmap == null) return;
+        int left, top, right, bottom;
+        boolean copied;
+        synchronized (bitmap) {
+            if (bitmap.isRecycled()) return;
+            left = Math.max(0, x);
+            top = Math.max(0, y);
+            right = (int) Math.min(bitmap.getWidth(), (long) x + width);
+            bottom = (int) Math.min(bitmap.getHeight(), (long) y + height);
+            if (right <= left || bottom <= top) return;
+            copied = LibFreeRDP.updateGraphics(currentSession.getInstance(), bitmap,
+                    left, top, right - left, bottom - top);
         }
-        if (viewable != null && session != null) {
-            Bitmap bitmap = viewable.getBitmap();
-            if (bitmap != null && x + width <= bitmap.getWidth() && y + height <= bitmap.getHeight()) {
-                LibFreeRDP.updateGraphics(session.getInstance(), bitmap, x, y, width, height);
-                viewable.reDraw(x, y, width, height);
+        // Release the bitmap before calling back into the view (which owns resize/disposal).
+        if (copied) {
+            if (!receivedFirstGraphicsFrame) {
+                receivedFirstGraphicsFrame = true;
+                handler.sendEmptyMessage(RemoteClientLibConstants.GRAPHICS_FIRST_FRAME_RECEIVED);
             }
+            viewable.reDraw(left, top, right - left, bottom - top);
         }
     }
 

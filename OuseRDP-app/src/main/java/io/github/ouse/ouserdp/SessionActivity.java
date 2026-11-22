@@ -31,6 +31,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
     private NativeTouchInput nativeTouch;
     private TextView connectionStatus;
     private TextView keyboardStatus;
+    private KeyboardServiceMonitor keyboardHealth;
     private final Handler sessionHandler = new Handler(Looper.getMainLooper());
     private RdpCommunicator attachedBackend;
     private final Runnable attachSession = new Runnable() {
@@ -82,6 +83,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        keyboardHealth = new KeyboardServiceMonitor(this);
         nativeTouch = new NativeTouchInput(new NativeTouchInput.Sink() {
             public boolean ready() { RdpCommunicator rdp = rdp(); return rdp != null && rdp.isNativeTouchReady(); }
             public void send(int action, int id, int x, int y) { RdpCommunicator rdp = rdp(); if (rdp != null) rdp.writeTouchEvent(action, id, x, y); }
@@ -207,6 +209,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
 
     @Override
     protected void onPause() {
+        if (keyboardHealth != null) keyboardHealth.stop();
         if (nativeTouch != null) nativeTouch.cancel();
         super.onPause();
     }
@@ -214,6 +217,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
     @Override protected void onResume() {
         super.onResume();
         onKeyboardRoutingChanged(WindowsKeyCaptureService.isAndroidKeyboardMode(this));
+        if (keyboardHealth != null) keyboardHealth.start();
         sessionHandler.removeCallbacks(attachSession);
         sessionHandler.post(attachSession);
     }
@@ -227,6 +231,7 @@ public final class SessionActivity extends RemoteCanvasActivity {
     }
 
     @Override protected void onDestroy() {
+        if (keyboardHealth != null) keyboardHealth.stop();
         sessionHandler.removeCallbacksAndMessages(null);
         if (attachedBackend != null && isFinishing()) RdpKeepAliveService.detach(this, attachedBackend);
         if (attachedBackend != null && !RdpKeepAliveService.owns(attachedBackend)) attachedBackend.setConnectionStateListener(null);

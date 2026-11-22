@@ -252,7 +252,8 @@ abstract public class AbstractBitmapData implements AbstractDrawableData {
                 drawable.dispose();
             }
             if (mbitmap != null) {
-                mbitmap.recycle();
+                // The RDP receiver and renderer share this monitor with disposal.
+                synchronized (mbitmap) { mbitmap.recycle(); }
                 mbitmap = null;
             }
             drawable = null;

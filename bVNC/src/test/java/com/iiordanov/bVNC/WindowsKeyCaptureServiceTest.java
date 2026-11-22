@@ -15,6 +15,30 @@ import static org.mockito.Mockito.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(application = Application.class, sdk = 28)
 public class WindowsKeyCaptureServiceTest {
+    @Test public void destroyingOldInstanceDoesNotDisconnectReplacement() {
+        var oldController = Robolectric.buildService(WindowsKeyCaptureService.class).create();
+        var newController = Robolectric.buildService(WindowsKeyCaptureService.class).create();
+        oldController.get().onServiceConnected();
+        newController.get().onServiceConnected();
+        oldController.destroy();
+        assertTrue(WindowsKeyCaptureService.isConnected());
+        newController.destroy();
+        assertFalse(WindowsKeyCaptureService.isConnected());
+    }
+    @Test public void bindingStateClearsOnUnbindAndDestroyAndCanReconnect() {
+        var controller = Robolectric.buildService(WindowsKeyCaptureService.class).create();
+        WindowsKeyCaptureService service = controller.get();
+        assertFalse(WindowsKeyCaptureService.isConnected());
+        service.onServiceConnected();
+        assertTrue(WindowsKeyCaptureService.isConnected());
+        service.onServiceConnected();
+        service.onUnbind(new android.content.Intent());
+        assertFalse(WindowsKeyCaptureService.isConnected());
+        service.onServiceConnected();
+        assertTrue(WindowsKeyCaptureService.isConnected());
+        controller.destroy();
+        assertFalse(WindowsKeyCaptureService.isConnected());
+    }
     @Test public void physicalShortcutSwitchesRoutingWithoutOpeningRecents() {
         RemoteCanvasActivity session = mock(RemoteCanvasActivity.class);
         when(session.hasWindowFocus()).thenReturn(true);

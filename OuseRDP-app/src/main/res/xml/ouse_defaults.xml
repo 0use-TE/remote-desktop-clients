@@ -27,6 +27,7 @@
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/ouse_input_defaults">
         <Preference android:key="ouseShortcutSetup" android:title="@string/ouse_capture_windows_shortcuts" />
+        <Preference android:key="ouseKeyboardDiagnostics" android:title="导出键盘服务诊断日志" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/ouse_pointer_defaults">
         <ListPreference

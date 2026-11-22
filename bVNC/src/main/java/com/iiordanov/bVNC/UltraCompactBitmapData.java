@@ -146,14 +146,18 @@ class UltraCompactBitmapData extends AbstractBitmapData {
 
         @Override
         public void draw(Canvas canvas) {
-            try {
-                synchronized (this) {
-                    canvas.drawBitmap(data.mbitmap, 0.0f, 0.0f, _defaultPaint);
-                    if (!(vncCanvas instanceof RemoteCanvas remoteCanvas) || !remoteCanvas.isNativeTouchMode()) {
-                        canvas.drawBitmap(softCursor, cursorRect.left, cursorRect.top, _defaultPaint);
-                    }
+            synchronized (UltraCompactBitmapData.this) {
+                Bitmap frame = data.mbitmap;
+                if (!drawing || frame == null) return;
+                // Never sample pixels while JNI is copying an update or recycling the buffer.
+                synchronized (frame) {
+                    if (frame.isRecycled()) return;
+                    canvas.drawBitmap(frame, 0.0f, 0.0f, _defaultPaint);
                 }
-            } catch (Throwable e) {
+                if (softCursor != null && !softCursor.isRecycled()
+                        && (!(vncCanvas instanceof RemoteCanvas remoteCanvas) || !remoteCanvas.isNativeTouchMode())) {
+                    canvas.drawBitmap(softCursor, cursorRect.left, cursorRect.top, _defaultPaint);
+                }
             }
         }
     }

@@ -15,7 +15,7 @@ OuseRDP 是基于 [iiordanov/remote-desktop-clients](https://github.com/iiordano
 - **键盘路由**：捕获 Win、Alt+Tab 等 Windows 快捷键；Ctrl+Alt+F12 在 Windows 与安卓键盘之间切换，安卓模式显示大字提示。
 - **后台保持连接**：切换安卓应用时，通过前台服务维持会话，并提供连接通知。
 - **断线恢复**：已连接会话中断后自动重试，网络恢复后继续尝试，也能手动重连。
-- **显示与滚动**：调整远程分辨率、Windows 显示缩放和滚动灵敏度。
+- **显示与滚动**：调整远程分辨率、Windows 显示缩放和滚动灵敏度；本地使用 32 位颜色缓冲，画面更新随屏幕刷新合并。
 
 ![OuseRDP 设置](site/assets/settings.png)
 
@@ -30,9 +30,13 @@ OuseRDP 是基于 [iiordanov/remote-desktop-clients](https://github.com/iiordano
 
 Windows 需要支持作为 RDP 服务端的版本，例如专业版或企业版。后台服务与自动重连的行为见 [BACKGROUND.md](OuseRDP-app/BACKGROUND.md)，触摸见 [TOUCH.md](OuseRDP-app/TOUCH.md)，键盘见 [KEYBOARD.md](OuseRDP-app/KEYBOARD.md)。
 
+## 键盘服务恢复
+
+设置中区分未开启、连接中、正常运行和已开启但失联，会话画面不显示无障碍服务提示。异常时可在设置中恢复；可选 ADB 授权后，应用返回前台时会自动尝试恢复自身服务。诊断日志可在设置中导出，详见 [ACCESSIBILITY.md](OuseRDP-app/ACCESSIBILITY.md)。
+
 ## 构建
 
-当前应用版本为 **0.1.11**。使用 JDK 21、Android SDK，以及上游构建流程准备的 FreeRDP 和其他原生依赖；完整依赖准备步骤保留在 [上游构建文档](docs/UPSTREAM.md)。本仓库不包含完整原生依赖产物。
+当前应用版本为 **0.1.14**。使用 JDK 21、Android SDK，以及上游构建流程准备的 FreeRDP 和其他原生依赖；完整依赖准备步骤保留在 [上游构建文档](docs/UPSTREAM.md)。本仓库不包含完整原生依赖产物。
 
 Windows 上先设置 `JAVA_HOME` 与 `ANDROID_HOME`，再构建触摸桥接库和 APK：
 

@@ -16,6 +16,11 @@ public final class WindowsKeyCaptureService extends AccessibilityService
     // The service callbacks and activity lifecycle both run on the main thread.
     private static final WindowsKeyCapture capture = new WindowsKeyCapture();
     private static RemoteCanvasActivity session;
+    private static volatile WindowsKeyCaptureService connectedService;
+    private boolean inputListenerRegistered;
+
+    /** Actual system binding in this process, independent of the settings switch. */
+    public static boolean isConnected() { return connectedService != null; }
     private static java.lang.ref.WeakReference<RemoteCanvasActivity> modeOwner = new java.lang.ref.WeakReference<>(null);
 
     public static boolean isEnabled(Context context) {
@@ -68,7 +73,12 @@ public final class WindowsKeyCaptureService extends AccessibilityService
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        ((InputManager) getSystemService(INPUT_SERVICE)).registerInputDeviceListener(this, null);
+        if (!inputListenerRegistered) {
+            ((InputManager) getSystemService(INPUT_SERVICE)).registerInputDeviceListener(this, null);
+            inputListenerRegistered = true;
+        }
+        connectedService = this;
+        android.util.Log.i("OuseKeyboard", "Accessibility service connected");
     }
 
     @Override
@@ -104,10 +114,32 @@ public final class WindowsKeyCaptureService extends AccessibilityService
 
     @Override
     public boolean onUnbind(Intent intent) {
-        capture.releaseKeys(WindowsKeyCaptureService::sendKey);
-        capture.reset();
-        ((InputManager) getSystemService(INPUT_SERVICE)).unregisterInputDeviceListener(this);
+        cleanup();
         return super.onUnbind(intent);
+    }
+
+    @Override public void onDestroy() {
+        cleanup();
+        super.onDestroy();
+    }
+
+    private void cleanup() {
+        // An older instance may finish destroying after its replacement connected.
+        // It must not clear the new connection or its keyboard state.
+        if (connectedService == this) {
+            connectedService = null;
+            try { capture.releaseKeys(WindowsKeyCaptureService::sendKey); }
+            catch (RuntimeException error) { android.util.Log.e("OuseKeyboard", "Unable to release remote keys during service shutdown", error); }
+            finally {
+                capture.reset();
+            }
+            if (session != null) session.onKeyboardRoutingChanged(false);
+        }
+        if (inputListenerRegistered) {
+            ((InputManager) getSystemService(INPUT_SERVICE)).unregisterInputDeviceListener(this);
+            inputListenerRegistered = false;
+        }
+        android.util.Log.i("OuseKeyboard", "Accessibility service disconnected");
     }
 
     @Override

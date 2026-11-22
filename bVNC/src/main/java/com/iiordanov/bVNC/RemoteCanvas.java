@@ -36,6 +36,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.RectF;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.provider.Settings;
 import android.util.AttributeSet;
@@ -138,10 +139,9 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
      * This flag indicates whether this is the Opaque client.
      */
     boolean isOpaque;
-    long lastDraw;
     boolean userPanned = false;
 
-    boolean isForegrounded = false;
+    volatile boolean isForegrounded = false;
 
     /**
      * This runnable displays a message on the screen.
@@ -159,8 +159,11 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
         }
     };
 
-    //Log.d(TAG, "invalidateCanvasRunnable");
-    Runnable invalidateCanvasRunnable = this::postInvalidate;
+    private final FrameUpdateScheduler frameUpdates = new FrameUpdateScheduler(new FrameUpdateScheduler.Target() {
+        public void postFrame(Runnable frame) { postOnAnimation(frame); }
+        public void invalidate(Rect bounds) { RemoteCanvas.this.invalidate(bounds); }
+    });
+    private final java.util.List<AbstractDrawableData> retiredDrawables = new java.util.ArrayList<>();
 
     /**
      * This runnable sets the drawable (contained in myDrawable) for the RemoteCanvas (ImageView).
@@ -172,6 +175,8 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
                 if (myDrawable != null) {
                     Log.d(TAG, "drawableSetter myDrawable not null");
                     myDrawable.setImageDrawable(RemoteCanvas.this);
+                    for (AbstractDrawableData previous : retiredDrawables) previous.dispose();
+                    retiredDrawables.clear();
                 } else {
                     Log.e(TAG, "drawableSetter myDrawable is null");
                     displayOnScreenMessageLongDuration(R.string.error_out_of_memory);
@@ -340,9 +345,10 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
 
     private void reallocateMyDrawable(int dx, int dy) {
         synchronized (this) {
+            AbstractDrawableData previous = myDrawable;
             if (!isVnc) {
                 Log.i(TAG, "Using UltraCompactBufferBitmapData.");
-                myDrawable = new UltraCompactBitmapData(dx, dy, this, isSpice | isOpaque);
+                myDrawable = new UltraCompactBitmapData(dx, dy, this, isSpice || isOpaque || Utils.isOuseRdp(getContext()));
             } else {
                 try {
                     if (!compact) {
@@ -359,6 +365,9 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
                     }
                     myDrawable = new CompactBitmapData(dx, dy, this, isSpice | isOpaque);
                 }
+            }
+            if (previous != null && previous != myDrawable && Utils.isOuseRdp(getContext())) {
+                retiredDrawables.add(previous);
             }
         }
     }
@@ -689,41 +698,11 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
      * Causes a redraw of the myDrawable to happen at the indicated coordinates.
      */
     public void reDraw(int x, int y, int w, int h) {
-        //Log.i(TAG, "reDraw called: " + x + ", " + y + " + " + w + "x" + h);
-        long timeNow = System.currentTimeMillis();
-        if (timeNow - lastDraw > 16.6666) {
-            float scale = getZoomFactor();
-            float shiftedX = x - shiftX;
-            float shiftedY = y - shiftY;
-            // Make the box slightly larger to avoid artifacts due to truncation errors.
-            postInvalidate((int) ((shiftedX - 1) * scale), (int) ((shiftedY - 1) * scale),
-                    (int) ((shiftedX + w + 1) * scale), (int) ((shiftedY + h + 1) * scale));
-            lastDraw = timeNow;
-        } else {
-            handler.removeCallbacks(invalidateCanvasRunnable);
-            handler.postDelayed(invalidateCanvasRunnable, 100);
-        }
+        reDraw((float) x, (float) y, (float) w, (float) h);
     }
 
-    /**
-     * This is a float-accepting version of reDraw().
-     * Causes a redraw of the myDrawable to happen at the indicated coordinates.
-     */
     public void reDraw(float x, float y, float w, float h) {
-        //Log.i(TAG, "reDraw float called: " + x + ", " + y + " + " + w + "x" + h);
-        long timeNow = System.currentTimeMillis();
-        if (timeNow - lastDraw > 16.6666) {
-            float scale = getZoomFactor();
-            float shiftedX = x - shiftX;
-            float shiftedY = y - shiftY;
-            // Make the box slightly larger to avoid artifacts due to truncation errors.
-            postInvalidate((int) ((shiftedX - 1.f) * scale), (int) ((shiftedY - 1.f) * scale),
-                    (int) ((shiftedX + w + 1.f) * scale), (int) ((shiftedY + h + 1.f) * scale));
-            lastDraw = timeNow;
-        } else {
-            handler.removeCallbacks(invalidateCanvasRunnable);
-            handler.postDelayed(invalidateCanvasRunnable, 100);
-        }
+        frameUpdates.request(FrameUpdateScheduler.viewBounds(x, y, w, h, shiftX, shiftY, getZoomFactor()));
     }
 
     /**
@@ -1012,6 +991,18 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
     }
 
     public void setForegrounded(boolean foregrounded) {
+        boolean returning = foregrounded && !isForegrounded;
         isForegrounded = foregrounded;
+        if (returning) postInvalidateOnAnimation();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        frameUpdates.clear();
+        super.onDetachedFromWindow();
+        synchronized (this) {
+            for (AbstractDrawableData previous : retiredDrawables) previous.dispose();
+            retiredDrawables.clear();
+        }
     }
 }

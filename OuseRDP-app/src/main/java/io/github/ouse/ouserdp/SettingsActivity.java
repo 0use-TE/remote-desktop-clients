@@ -23,6 +23,17 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public final class SettingsActivity extends AppCompatActivity {
+    private final androidx.activity.result.ActivityResultLauncher<String> saveDiagnostics = registerForActivityResult(
+            new androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/plain"), uri -> {
+                if (uri == null) return;
+                try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
+                    if (output == null) throw new IOException("No output stream");
+                    output.write(KeyboardServiceHealth.diagnostics(this).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    android.widget.Toast.makeText(this, "诊断日志已保存", android.widget.Toast.LENGTH_LONG).show();
+                } catch (IOException error) {
+                    android.widget.Toast.makeText(this, "日志保存失败，请重新选择文件", android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -78,6 +89,15 @@ public final class SettingsActivity extends AppCompatActivity {
 
     public static final class DefaultsFragment extends PreferenceFragmentCompat {
         private Preference shortcutSetup;
+        private final android.os.Handler healthHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        private final Runnable refreshHealth = new Runnable() {
+            @Override public void run() {
+                if (!isResumed()) return;
+                KeyboardServiceHealth.poll(requireContext());
+                shortcutSetup.setSummary(KeyboardServiceHealth.summary(KeyboardServiceHealth.state(requireContext())));
+                healthHandler.postDelayed(this, 1000);
+            }
+        };
 
         @Override
         public void onCreatePreferences(Bundle state, String rootKey) {
@@ -85,7 +105,11 @@ public final class SettingsActivity extends AppCompatActivity {
             setPreferencesFromResource(R.xml.ouse_defaults, rootKey);
             shortcutSetup = findPreference("ouseShortcutSetup");
             shortcutSetup.setOnPreferenceClickListener(preference -> {
-                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                KeyboardServiceHealth.showRecovery(requireActivity());
+                return true;
+            });
+            findPreference("ouseKeyboardDiagnostics").setOnPreferenceClickListener(preference -> {
+                ((SettingsActivity) requireActivity()).saveDiagnostics.launch("OuseRDP-keyboard-diagnostics.txt");
                 return true;
             });
             findPreference("ouseAbout").setOnPreferenceClickListener(preference -> {
@@ -97,8 +121,13 @@ public final class SettingsActivity extends AppCompatActivity {
         @Override
         public void onResume() {
             super.onResume();
-            shortcutSetup.setSummary(WindowsKeyCaptureService.isEnabled(requireContext())
-                    ? R.string.ouse_shortcuts_enabled : R.string.ouse_shortcuts_disabled);
+            healthHandler.removeCallbacks(refreshHealth);
+            healthHandler.post(refreshHealth);
+        }
+
+        @Override public void onPause() {
+            healthHandler.removeCallbacks(refreshHealth);
+            super.onPause();
         }
     }
 }

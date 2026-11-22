@@ -48,6 +48,7 @@ public final class ConnectionsActivity extends AppCompatActivity {
     private static final String LAST_CONNECTION = "lastConnection";
     private static final int DEFAULT_RDP_PORT = 3389;
     private LinearLayout list;
+    private KeyboardServiceMonitor keyboardHealth;
     private ConnectionBean pendingMicrophoneConnection;
     private String pendingPassword;
     private final ActivityResultLauncher<String> microphonePermission = registerForActivityResult(
@@ -97,6 +98,8 @@ public final class ConnectionsActivity extends AppCompatActivity {
         header.addView(button(R.string.ouse_settings,
                 () -> startActivity(new Intent(this, SettingsActivity.class)), true));
 
+        keyboardHealth = new KeyboardServiceMonitor(this);
+
         MaterialButton add = button(R.string.ouse_add_computer, () -> edit(null), false);
         LinearLayout.LayoutParams action = new LinearLayout.LayoutParams(-2, -2);
         action.topMargin = dp(18);
@@ -126,6 +129,12 @@ public final class ConnectionsActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refreshConnections();
+        keyboardHealth.start();
+    }
+
+    @Override protected void onPause() {
+        if (keyboardHealth != null) keyboardHealth.stop();
+        super.onPause();
     }
 
     private void refreshConnections() {
