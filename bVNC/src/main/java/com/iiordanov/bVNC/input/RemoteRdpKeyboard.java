@@ -44,6 +44,12 @@ public class RemoteRdpKeyboard extends RemoteKeyboard {
         processLocalKeyEvent(event.getKeyCode(), event, 0, true);
     }
 
+    public void releaseLocalState() {
+        stopRepeatingKeyEvent();
+        hardwareMetaState = onScreenMetaState = lastDownMetaState = 0;
+        keyboardMapper.reset(rdpcomm);
+    }
+
     public void showWindowsKeyboard() {
         rdpcomm.writeKeyEvent(0, 0, false);
         keyboardMapper.toggleWindowsOnScreenKeyboard();

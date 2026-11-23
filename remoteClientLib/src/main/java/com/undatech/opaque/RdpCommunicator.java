@@ -42,6 +42,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     private final static int VK_RWIN = 0x5C;
     private final static int VK_EXT_KEY = 0x00000100;
     private final RdpCommunicator myself;
+    private static RdpCommunicator eventOwner;
     private final Viewable viewable;
     private volatile SessionState session;
     private final BookmarkBase bookmark;
@@ -57,7 +58,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     private boolean authenticationAttempted = false;
     private boolean gatewayAuthenticationAttempted = false;
     private volatile boolean disconnectRequested = false;
-    public enum ConnectionState { CONNECTING, CONNECTED, RECONNECTING, WAITING_FOR_NETWORK, RETRY_FAILED, DISCONNECTED }
+    public enum ConnectionState { CONNECTING, CONNECTED, RECONNECTING, WAITING_FOR_NETWORK, RETRY_FAILED, AUTHENTICATION_FAILED, SERVER_ENDED, DISCONNECTED }
     public interface ConnectionStateListener { void changed(ConnectionState state, int attempt, int delayMillis); }
     private volatile ConnectionStateListener stateListener;
     private volatile ConnectionState connectionState = ConnectionState.CONNECTING;
@@ -66,6 +67,16 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     private Runnable pendingReconnect;
     private volatile boolean recoveryInFlight;
     private boolean failureReported;
+    private volatile boolean visible = true;
+    private volatile long lastFailure;
+    private final RdpInputState heldInput = new RdpInputState();
+    private RdpSessionDiagnostics diagnostics;
+    private int requestedWidth, requestedHeight, requestedScale;
+    private long lastResizeAt;
+    private boolean suppressingOutput;
+    private String imageClipboardText;
+    private long clipboardGeneration = 1;
+
     private boolean isOuse() { return "io.github.ouse.ouserdp".equals(context.getPackageName()); }
     private boolean autoReconnect() { return isOuse() && context.getSharedPreferences("generalSettings", Context.MODE_PRIVATE).getBoolean("ouseAutoReconnect", true); }
 
@@ -75,6 +86,10 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
     private void publishState(ConnectionState state, int delay) {
         connectionState = state;
+        if (diagnostics != null) {
+            diagnostics.state(state, reconnectBackoff.attempts(), delay);
+            if (state != ConnectionState.RECONNECTING) diagnostics.persist(context);
+        }
         handler.post(() -> { ConnectionStateListener listener = stateListener; if (listener != null) listener.changed(state, reconnectBackoff.attempts(), delay); });
     }
     private boolean current(long instance) { return session != null && session.getInstance() == instance; }
@@ -94,6 +109,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
     public void onNetworkAvailable() {
         handler.post(() -> {
+            if (connectionState == ConnectionState.RETRY_FAILED && autoReconnect()) { retryConnectionNow(); return; }
             if (connectionState == ConnectionState.WAITING_FOR_NETWORK && pendingReconnect != null) {
                 handler.removeCallbacks(pendingReconnect);
                 handler.post(pendingReconnect);
@@ -122,10 +138,17 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
                             NativeRdpTouch.detach(previous);
                             GlobalApp.freeSession(previous);
                             session = GlobalApp.createSession(bookmark, context);
+                            clipboardGeneration++;
+                            imageClipboardText = null;
                             session.setUIEventListener(RdpCommunicator.this);
-                            LibFreeRDP.setEventListener(RdpCommunicator.this);
+                            registerEvents();
                             receivedFirstGraphicsFrame = false;
                             metaState = 0;
+                            heldInput.clear();
+                            remoteKeyboardState.reset();
+                            requestedWidth = requestedHeight = requestedScale = 0;
+                            lastFailure = 0;
+                            suppressingOutput = false;
                             failureReported = false;
                             reattemptWithoutCredentials = false;
                             authenticationAttempted = false;
@@ -174,6 +197,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         this.bookmark = new ManualBookmark();
         this.context = context;
         this.viewable = viewable;
+        if (isOuse()) diagnostics = RdpSessionDiagnostics.start();
         this.myself = this;
         this.username = username;
         this.domain = domain;
@@ -233,7 +257,29 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     @Override
     public synchronized void writeClientCutText(String text) {
-        if (!disconnectRequested && isInNormalProtocol) LibFreeRDP.sendClipboardData(session.getInstance(), text);
+        if (!disconnectRequested && isInNormalProtocol) {
+            // The unchanged Android text must not replace an explicitly offered image.
+            if (imageClipboardText != null && imageClipboardText.equals(text)) return;
+            imageClipboardText = null;
+            NativeRdpClipboard.clear(session.getInstance());
+            LibFreeRDP.sendClipboardData(session.getInstance(), text);
+        }
+    }
+
+    public synchronized long clipboardSession() {
+        return !disconnectRequested && isInNormalProtocol && session != null ? clipboardGeneration : 0;
+    }
+
+    public synchronized boolean canCopyImage() {
+        return clipboardSession() != 0 && NativeRdpClipboard.ready(session.getInstance());
+    }
+
+    /** Runs on the image worker, with the same lifetime lock as reconnect and close. */
+    public synchronized boolean writeClipboardImage(long expectedSession, byte[] png, byte[] dibV5, String localText) {
+        if (expectedSession == 0 || clipboardSession() != expectedSession) return false;
+        if (!NativeRdpClipboard.send(session.getInstance(), png, dibV5)) return false;
+        imageClipboardText = localText;
+        return true;
     }
 
     @Override
@@ -273,7 +319,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     private synchronized void sendRemoteMouseEvent(int x, int y, int pointerMask) {
         sleepBetweenInputEvents(3);
-        LibFreeRDP.sendCursorEvent(session.getInstance(), x, y, pointerMask);
+        if (LibFreeRDP.sendCursorEvent(session.getInstance(), x, y, pointerMask)) heldInput.pointer(x, y, pointerMask);
     }
 
 
@@ -309,8 +355,12 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         reconnectBackoff.stop();
         handler.post(() -> { if (pendingReconnect != null) handler.removeCallbacks(pendingReconnect); pendingReconnect = null; });
         publishState(ConnectionState.DISCONNECTED, 0);
+        inputExecutor.shutdownNow();
+        recoveryExecutor.shutdownNow();
+        heldInput.clear();
+        if (remoteKeyboardState != null) remoteKeyboardState.reset();
         long instance = session.getInstance();
-        DisconnectThread d = new DisconnectThread(instance);
+        DisconnectThread d = new DisconnectThread(instance, this);
         d.start();
     }
 
@@ -361,7 +411,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     private synchronized void sendKeyEvent(int virtualKeyCode, boolean down) {
         sleepBetweenInputEvents(5);
-        LibFreeRDP.sendKeyEvent(session.getInstance(), virtualKeyCode, down);
+        if (LibFreeRDP.sendKeyEvent(session.getInstance(), virtualKeyCode, down)) heldInput.key(virtualKeyCode, down, false);
     }
 
     @Override
@@ -383,17 +433,18 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
 
     private void runMethodOnInputThread(Runnable runnable) {
+        if (disconnectRequested || session == null || inputExecutor.isShutdown()) return;
         long instance = session.getInstance();
-        inputExecutor.submit(() -> {
+        try { inputExecutor.submit(() -> {
             synchronized (RdpCommunicator.this) {
                 if (!disconnectRequested && isInNormalProtocol && current(instance)) runnable.run();
             }
-        });
+        }); } catch (java.util.concurrent.RejectedExecutionException ignored) { /* Closing the session. */ }
     }
 
     private synchronized void sendUnicodeKey(int unicodeKey, boolean down) {
         sleepBetweenInputEvents(5);
-        LibFreeRDP.sendUnicodeKeyEvent(session.getInstance(), unicodeKey, down);
+        if (LibFreeRDP.sendUnicodeKeyEvent(session.getInstance(), unicodeKey, down)) heldInput.key(unicodeKey, down, true);
     }
 
     private static void sleepBetweenInputEvents(int millis) {
@@ -415,7 +466,70 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     @Override
     public void requestResolution(int x, int y) {
-        // This functionality is not yet available for RDP
+        requestDesktopSize(x, y, bookmark.getActiveScreenSettings().getDesktopScalePercentage());
+    }
+
+    public boolean isDisplayControlReady() {
+        boolean ready = !disconnectRequested && isInNormalProtocol && session != null && NativeRdpTouch.displayReady(session.getInstance());
+        if (diagnostics != null) diagnostics.capabilities(ready);
+        return ready;
+    }
+
+    public void recordViewport(int width, int height) { if (diagnostics != null) diagnostics.view(width, height); }
+
+    public void requestDesktopSize(int width, int height, int scale) {
+        if (width < 200 || height < 200 || width > 8192 || height > 8192) return;
+        runMethodOnInputThread(() -> {
+            boolean ready = NativeRdpTouch.displayReady(session.getInstance());
+            long now = android.os.SystemClock.elapsedRealtime();
+            if (width == requestedWidth && height == requestedHeight && scale == requestedScale && now - lastResizeAt < 5000) return;
+            BookmarkBase.ScreenSettings screen = bookmark.getActiveScreenSettings();
+            if (width == screen.getWidth() && height == screen.getHeight() && scale == screen.getDesktopScalePercentage()) return;
+            boolean sent = ready && NativeRdpTouch.resize(session.getInstance(), width, height, scale);
+            if (diagnostics != null) diagnostics.resize(ready, sent, width, height);
+            if (sent) {
+                requestedWidth = width; requestedHeight = height; requestedScale = scale; lastResizeAt = now;
+                screen.setDesktopScalePercentage(scale);
+            }
+        });
+    }
+
+    /** Release all input actually sent, including ordinary keys and mouse drags. */
+    public void releaseAllInput() {
+        runMethodOnInputThread(() -> {
+            long instance = session.getInstance();
+            NativeRdpTouch.cancel(instance);
+            heldInput.release(new RdpInputState.Sink() {
+                public void keyUp(int key) { LibFreeRDP.sendKeyEvent(instance, key, false); }
+                public void unicodeUp(int code) { LibFreeRDP.sendUnicodeKeyEvent(instance, code, false); }
+                public void mouseUp(int x, int y, int button) { LibFreeRDP.sendCursorEvent(instance, x, y, button); }
+            });
+            metaState = 0;
+            remoteKeyboardState.reset();
+        });
+    }
+
+    public void setSessionVisible(boolean shown) {
+        visible = shown;
+        runMethodOnInputThread(() -> {
+            if (visible != shown) return;
+            if (!shown || suppressingOutput) {
+                boolean sent = NativeRdpTouch.output(session.getInstance(), shown);
+                if (sent) suppressingOutput = !shown;
+            }
+            if (diagnostics != null) {
+                diagnostics.visibility(shown, suppressingOutput);
+                if (!shown) diagnostics.persist(context);
+            }
+        });
+    }
+
+
+    private void registerEvents() {
+        synchronized (RdpCommunicator.class) {
+            eventOwner = this;
+            LibFreeRDP.setEventListener(this);
+        }
     }
 
     private void initSession(String rdpFileName, String username, String domain, String password) {
@@ -425,7 +539,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         bookmark.setPassword(password);
         session = GlobalApp.createSession(bookmark, context);
         session.setUIEventListener(this);
-        LibFreeRDP.setEventListener(this);
+        registerEvents();
     }
 
     public void setConnectionParameters(
@@ -484,7 +598,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         performanceFlags.setGlyphCache(connection.getEnableGlyphCache());
 
         BookmarkBase.AdvancedSettings advancedSettings = bookmark.getAdvancedSettings();
-        advancedSettings.setRedirectSDCard(redirectSdCard);
+        advancedSettings.setRedirectSDCard(!isOuse() && redirectSdCard);
         advancedSettings.setConsoleMode(consoleMode);
         advancedSettings.setRedirectSound(redirectSound);
         advancedSettings.setRedirectMicrophone(enableRecording);
@@ -505,11 +619,18 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         return address;
     }
 
-    public void connect() {
-        if ("io.github.ouse.ouserdp".equals(context.getPackageName())) {
-            NativeRdpTouch.attach(session.getInstance());
-        }
-        session.connect(context);
+    public synchronized void connect() {
+        if (isOuse()) {
+            long instance = session.getInstance();
+            NativeRdpTouch.attach(instance);
+            // Parse the normal connection first; add our drive before native pre-connect loads RDPDR.
+            LibFreeRDP.setConnectionInfo(context, instance, bookmark);
+            try {
+                if (!NativeSharedFolder.configure(instance, RdpSharedFolder.directory(context).getAbsolutePath()))
+                    Log.w(TAG, "Shared folder redirection unavailable");
+            } catch (java.io.IOException error) { Log.w(TAG, "Shared folder storage unavailable"); }
+            LibFreeRDP.connect(instance);
+        } else session.connect(context);
     }
 
     public boolean isNativeTouchReady() {
@@ -547,11 +668,14 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         authenticationAttempted = false;
         myself.setIsInNormalProtocol(true);
         reconnectBackoff.connected();
+        lastFailure = 0;
+        if (!visible) setSessionVisible(false);
         publishState(ConnectionState.CONNECTED, 0);
     }
 
     @Override
     public void OnConnectionFailure(long instance) {
+        if (current(instance) && !disconnectRequested) captureFailure(instance);
         NativeRdpTouch.detach(instance);
         if (!current(instance)) return;
         Log.v(TAG, "OnConnectionFailure");
@@ -564,6 +688,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     @Override
     public void OnDisconnecting(long instance) {
         if (!current(instance) || disconnectRequested) return;
+        if (isOuse()) { isInNormalProtocol = false; return; }
         if (autoReconnect() && reconnectBackoff.connectedBefore()) {
             isInNormalProtocol = false;
             return; // The terminal Failure/Disconnected callback schedules one retry.
@@ -596,9 +721,22 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
 
     @Override
     public void OnDisconnected(long instance) {
+        if (current(instance) && !disconnectRequested) captureFailure(instance);
         NativeRdpTouch.detach(instance);
         if (!current(instance) || disconnectRequested) return;
         recoveryInFlight = false;
+        RdpFailureReason.Kind kind = RdpFailureReason.classify(lastFailure);
+        if (isOuse() && kind != RdpFailureReason.Kind.TRANSPORT) {
+            isInNormalProtocol = false;
+            if (failureReported) return;
+            failureReported = true;
+            handler.post(() -> {
+                if (pendingReconnect != null) handler.removeCallbacks(pendingReconnect);
+                pendingReconnect = null;
+                publishState(kind == RdpFailureReason.Kind.AUTHENTICATION ? ConnectionState.AUTHENTICATION_FAILED : ConnectionState.SERVER_ENDED, 0);
+            });
+            return;
+        }
         if (autoReconnect() && reconnectBackoff.connectedBefore()) {
             isInNormalProtocol = false;
             handler.post(this::scheduleNextRecovery);
@@ -606,6 +744,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         }
         if (failureReported) return;
         failureReported = true;
+        if (isOuse()) { isInNormalProtocol = false; publishState(ConnectionState.RETRY_FAILED, 0); return; }
         publishState(ConnectionState.DISCONNECTED, 0);
         Log.v(TAG, "OnDisconnected");
         if (!myself.isInNormalProtocol()) {
@@ -617,9 +756,24 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         }
     }
 
+    public boolean isClosed() { return disconnectRequested; }
+
+    public boolean isAuthenticationFailure() { return connectionState == ConnectionState.AUTHENTICATION_FAILED; }
+
+    private void captureFailure(long instance) {
+        long error = NativeRdpTouch.error(instance);
+        if (error != 0) lastFailure = error;
+        if (diagnostics != null && lastFailure != 0) diagnostics.failure(lastFailure);
+    }
+
     @Override
     public void OnSettingsChanged(int width, int height, int bpp) {
         Log.d(TAG, "OnSettingsChanged called, wxh: " + width + "x" + height);
+        if (disconnectRequested || width < 1 || height < 1) return;
+        if (diagnostics != null) {
+            diagnostics.display(width, height, session.getBookmark().getActiveScreenSettings().getDesktopScalePercentage());
+            diagnostics.persist(context);
+        }
         handler.sendEmptyMessage(RemoteClientLibConstants.GRAPHICS_SETTINGS_RECEIVED);
         BookmarkBase.ScreenSettings settings = session.getBookmark().getActiveScreenSettings();
         if (settings.getWidth() != width || settings.getHeight() != height) {
@@ -739,6 +893,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
         if (bitmap == null) return;
         int left, top, right, bottom;
         boolean copied;
+        long copyStarted = System.nanoTime();
         synchronized (bitmap) {
             if (bitmap.isRecycled()) return;
             left = Math.max(0, x);
@@ -749,6 +904,7 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
             copied = LibFreeRDP.updateGraphics(currentSession.getInstance(), bitmap,
                     left, top, right - left, bottom - top);
         }
+        if (diagnostics != null) diagnostics.frame(right - left, bottom - top, System.nanoTime() - copyStarted, copied);
         // Release the bitmap before calling back into the view (which owns resize/disposal).
         if (copied) {
             if (!receivedFirstGraphicsFrame) {
@@ -766,7 +922,8 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     }
 
     @Override
-    public void OnRemoteClipboardChanged(String data) {
+    public synchronized void OnRemoteClipboardChanged(String data) {
+        imageClipboardText = null;
         Log.d(TAG, "OnRemoteClipboardChanged called.");
         remoteClipboardChanged(data);
     }
@@ -774,14 +931,23 @@ public class RdpCommunicator extends RfbConnectable implements RdpKeyboardMapper
     public static class DisconnectThread extends Thread {
         long instance;
 
-        public DisconnectThread(long i) {
+        private final RdpCommunicator owner;
+        public DisconnectThread(long i) { this(i, null); }
+        private DisconnectThread(long i, RdpCommunicator owner) {
             this.instance = i;
+            this.owner = owner;
         }
 
         public void run() {
             LibFreeRDP.disconnect(instance);
             NativeRdpTouch.detach(instance);
             GlobalApp.freeSession(instance);
+            synchronized (RdpCommunicator.class) {
+                if (owner != null && eventOwner == owner) {
+                    LibFreeRDP.setEventListener(null);
+                    eventOwner = null;
+                }
+            }
         }
     }
 }

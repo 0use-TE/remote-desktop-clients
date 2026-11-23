@@ -8,8 +8,8 @@ android {
         applicationId 'io.github.ouse.ouserdp'
         minSdkVersion project.getProperties().get('SDK_VERSION')
         targetSdkVersion targetApi
-        versionCode 15
-        versionName '0.1.14'
+        versionCode 18
+        versionName '0.1.17'
         testInstrumentationRunner 'io.github.ouse.ouserdp.TouchSmokeInstrumentation'
     }
 
@@ -48,6 +48,7 @@ dependencies {
     implementation (name: 'android-database-sqlcipher-4.5.4', ext: 'aar')
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.preference:preference-ktx:1.2.0'
+    implementation 'androidx.exifinterface:exifinterface:1.4.1'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.17'
     testImplementation 'org.mockito:mockito-core:5.24.0'

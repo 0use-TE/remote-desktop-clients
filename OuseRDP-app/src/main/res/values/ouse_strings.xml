@@ -27,7 +27,7 @@
     <string name="ouse_keyboard_capture_detail">Sends Win shortcuts, Alt+Tab and F1–F24 to Windows while a connected OuseRDP session has focus. Ctrl+Alt+F12 switches the keyboard between Windows and Android.</string>
     <string name="ouse_settings">Settings</string>
     <string name="ouse_back">Back</string>
-    <string name="ouse_display_defaults">Display · applies on next connection</string>
+    <string name="ouse_display_defaults">Display</string>
     <string name="ouse_desktop_resolution">Remote desktop resolution</string>
     <string name="ouse_windows_scale">Windows text and app size</string>
     <string name="ouse_show_windows_while_dragging">Show window contents while dragging</string>
@@ -44,10 +44,11 @@
     <string name="ouse_credits">Remote desktop engine based on aRDP by Iordan Iordanov and the FreeRDP project.</string>
     <string name="ouse_license">License</string>
     <string name="ouse_automatic">Automatic</string>
+    <string name="ouse_resolution_auto">Automatic · up to 2560 pixels</string>
     <string name="ouse_resolution_native">Match this screen</string>
     <string name="ouse_resolution_1920">Up to 1920 pixels on the long side</string>
     <string-array name="ouse_resolution_options">
-        <item>@string/ouse_automatic</item><item>@string/ouse_resolution_native</item>
+        <item>@string/ouse_resolution_auto</item><item>@string/ouse_resolution_native</item>
         <item>@string/ouse_resolution_1920</item>
     </string-array>
     <string-array name="ouse_resolution_values" translatable="false">
@@ -68,4 +69,32 @@
     <string-array name="ouse_scroll_values" translatable="false">
         <item>25</item><item>50</item><item>75</item><item>100</item><item>150</item>
     </string-array>
+    <string name="ouse_copy_image">Copy image to PC</string>
+    <string name="ouse_image_preparing">Preparing image…</string>
+    <string name="ouse_image_copied">Image copied. Paste it on your PC.</string>
+    <string name="ouse_image_failed">Could not read this image. Please choose another.</string>
+    <string name="ouse_image_too_large">Image is too large. Please crop it and try again.</string>
+    <string name="ouse_image_connection_changed">Connection changed. Please copy the image again.</string>
+    <string name="ouse_image_picker_failed">No photo picker is available.</string>
+    <string name="ouse_shared_folder">Shared folder</string>
+    <string name="ouse_shared_windows_path">Windows: %1$s</string>
+    <string name="ouse_shared_add_files">Add files</string>
+    <string name="ouse_shared_add_folder">Add folder</string>
+    <string name="ouse_shared_save">Save to tablet</string>
+    <string name="ouse_shared_refresh">Refresh</string>
+    <string name="ouse_shared_parent">Up one level</string>
+    <string name="ouse_shared_directory">Folder</string>
+    <string name="ouse_shared_empty">Add files, or copy them here from Windows.</string>
+    <string name="ouse_shared_unavailable">Could not open the shared folder.</string>
+    <string name="ouse_shared_picker_failed">Could not open the system file picker.</string>
+    <string name="ouse_shared_path_copied">Windows folder path copied.</string>
+    <string name="ouse_transfer_preparing">Preparing files…</string>
+    <string name="ouse_transfer_copying">Copying</string>
+    <string name="ouse_transfer_done">Copy complete</string>
+    <string name="ouse_transfer_cancelled">Copy cancelled</string>
+    <string name="ouse_transfer_failed">Copy failed. Check storage space and folder access, then retry.</string>
+    <string name="ouse_transfer_source_changed">Files are still changing. Wait for writing to finish, then retry.</string>
+    <string name="ouse_transfer_cancel">Cancel transfer</string>
+    <string name="ouse_transfer_counts">%1$d / %2$d files</string>
+    <string name="ouse_transfer_bytes">%1$s / %2$s</string>
 </resources>

@@ -28,9 +28,9 @@ public final class SettingsActivity extends AppCompatActivity {
                 if (uri == null) return;
                 try (java.io.OutputStream output = getContentResolver().openOutputStream(uri)) {
                     if (output == null) throw new IOException("No output stream");
-                    output.write(KeyboardServiceHealth.diagnostics(this).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    output.write((KeyboardServiceHealth.diagnostics(this) + "\n" + com.undatech.opaque.RdpSessionDiagnostics.export(this)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
                     android.widget.Toast.makeText(this, "诊断日志已保存", android.widget.Toast.LENGTH_LONG).show();
-                } catch (IOException error) {
+                } catch (IOException | SecurityException error) {
                     android.widget.Toast.makeText(this, "日志保存失败，请重新选择文件", android.widget.Toast.LENGTH_LONG).show();
                 }
             });
@@ -65,11 +65,16 @@ public final class SettingsActivity extends AppCompatActivity {
     }
 
     private void showAbout() {
-        new MaterialAlertDialogBuilder(this)
+        String version = "";
+        try { version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (android.content.pm.PackageManager.NameNotFoundException ignored) {}
+        var dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.ouse_app_name)
-                .setMessage(R.string.ouse_credits)
-                .setNeutralButton(R.string.ouse_license, (dialog, which) -> showLicense())
+                .setMessage(getString(R.string.ouse_credits) + "\n\n" + version)
+                .setNeutralButton(R.string.ouse_license, (licenseDialog, which) -> showLicense())
                 .setPositiveButton(android.R.string.ok, null).show();
+        android.widget.TextView text = dialog.findViewById(android.R.id.message);
+        if (text != null) text.setTextSize(20);
     }
 
     private void showLicense() {
@@ -108,8 +113,12 @@ public final class SettingsActivity extends AppCompatActivity {
                 KeyboardServiceHealth.showRecovery(requireActivity());
                 return true;
             });
-            findPreference("ouseKeyboardDiagnostics").setOnPreferenceClickListener(preference -> {
-                ((SettingsActivity) requireActivity()).saveDiagnostics.launch("OuseRDP-keyboard-diagnostics.txt");
+            findPreference("ouseSessionDiagnostics").setOnPreferenceClickListener(preference -> {
+                ((SettingsActivity) requireActivity()).saveDiagnostics.launch("OuseRDP-diagnostics.txt");
+                return true;
+            });
+            findPreference("ouseSharedFolder").setOnPreferenceClickListener(preference -> {
+                startActivity(new Intent(requireContext(), SharedFolderActivity.class));
                 return true;
             });
             findPreference("ouseAbout").setOnPreferenceClickListener(preference -> {

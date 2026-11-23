@@ -34,12 +34,26 @@ public final class SessionActivity extends RemoteCanvasActivity {
     private KeyboardServiceMonitor keyboardHealth;
     private final Handler sessionHandler = new Handler(Looper.getMainLooper());
     private RdpCommunicator attachedBackend;
+    private DisplayResizeController displayResize;
+    private boolean sessionVisible;
+    private ImageClipboardController imageClipboard;
+    private androidx.activity.result.ActivityResultLauncher<androidx.activity.result.PickVisualMediaRequest> imagePicker;
+    private RdpCommunicator imageTarget;
+    private long imageTargetSession;
+    private android.hardware.input.InputManager inputDevices;
+    private final android.hardware.input.InputManager.InputDeviceListener deviceListener = new android.hardware.input.InputManager.InputDeviceListener() {
+        public void onInputDeviceAdded(int id) {}
+        public void onInputDeviceChanged(int id) {}
+        public void onInputDeviceRemoved(int id) { releaseRemoteInputs(); if (nativeTouch != null) nativeTouch.cancel(); }
+    };
     private final Runnable attachSession = new Runnable() {
         @Override public void run() {
             if (isFinishing() || isDestroyed()) return;
             RdpCommunicator backend = rdp();
             if (backend == null) { sessionHandler.postDelayed(this, 250); return; }
             attachedBackend = backend;
+            backend.setSessionVisible(sessionVisible);
+            updateDisplay();
             if (getSharedPreferences(Constants.generalSettingsTag, Context.MODE_PRIVATE).getBoolean("ouseBackgroundConnection", true)) {
                 try { RdpKeepAliveService.attach(SessionActivity.this, backend); }
                 catch (RuntimeException error) { android.util.Log.e("OuseSession", "Unable to start foreground session", error); RdpKeepAliveService.detach(SessionActivity.this, backend); backend.setConnectionStateListener(SessionActivity.this::showConnectionState); }
@@ -57,11 +71,17 @@ public final class SessionActivity extends RemoteCanvasActivity {
             case WAITING_FOR_NETWORK -> "等待网络恢复";
             case RECONNECTING -> delay > 0 ? "连接中断，" + Math.max(1, delay / 1000) + " 秒后重连（" + attempt + "/8）" : "正在重新连接（" + attempt + "/8）";
             case RETRY_FAILED -> "暂时无法连接，点击此处重试";
-            case DISCONNECTED -> "连接已断开";
+            case AUTHENTICATION_FAILED -> "账号或登录权限有误，请返回修改电脑配置";
+            case SERVER_ENDED -> "远端已结束此会话，点击重新连接";
+            case DISCONNECTED -> "连接已结束，点击返回电脑列表";
         };
     }
     void showConnectionState(RdpCommunicator.ConnectionState state, int attempt, int delay) {
         if (isDestroyed() || connectionStatus == null) return;
+        if (state == RdpCommunicator.ConnectionState.CONNECTED && displayResize != null) {
+            displayResize.reconnect();
+            updateDisplay();
+        }
         connectionStatus.setText(stateText(state, attempt, delay));
         connectionStatus.setVisibility(state == RdpCommunicator.ConnectionState.CONNECTED ? View.GONE : View.VISIBLE);
     }
@@ -83,12 +103,38 @@ public final class SessionActivity extends RemoteCanvasActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        imageClipboard = new ImageClipboardController(this, message -> {
+            if (!isFinishing() && !isDestroyed()) android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show();
+        });
+        imagePicker = registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(), uri -> {
+            RdpCommunicator target = imageTarget;
+            long instance = imageTargetSession;
+            imageTarget = null; imageTargetSession = 0;
+            if (uri == null) return;
+            if (target == null || target != rdp() || instance == 0 || target.clipboardSession() != instance) {
+                android.widget.Toast.makeText(this, R.string.ouse_image_connection_changed, android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            imageClipboard.copy(uri, target, instance);
+        });
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() { showControls(); }
+        });
         keyboardHealth = new KeyboardServiceMonitor(this);
         nativeTouch = new NativeTouchInput(new NativeTouchInput.Sink() {
             public boolean ready() { RdpCommunicator rdp = rdp(); return rdp != null && rdp.isNativeTouchReady(); }
             public void send(int action, int id, int x, int y) { RdpCommunicator rdp = rdp(); if (rdp != null) rdp.writeTouchEvent(action, id, x, y); }
             public void cancel() { RdpCommunicator rdp = rdp(); if (rdp != null) rdp.cancelTouches(); }
         });
+        displayResize = new DisplayResizeController(sessionHandler, new DisplayResizeController.Target() {
+            public boolean ready() { RdpCommunicator backend = rdp(); return backend != null && backend.isDisplayControlReady(); }
+            public void resize(int width, int height, int scale) { RdpCommunicator backend = rdp(); if (backend != null) { releaseRemoteInputs(); nativeTouch.cancel(); backend.requestDesktopSize(width, height, scale); } }
+        });
+        getCanvas().addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) updateDisplay();
+        });
+        inputDevices = (android.hardware.input.InputManager) getSystemService(INPUT_SERVICE);
+        inputDevices.registerInputDeviceListener(deviceListener, sessionHandler);
         FrameLayout canvas = (FrameLayout) getCanvas().getParent();
         controls = new ImageButton(this);
         controls.setImageResource(R.drawable.ouse_settings_icon);
@@ -116,7 +162,12 @@ public final class SessionActivity extends RemoteCanvasActivity {
         connectionStatus.setBackgroundColor(0xE6172231);
         connectionStatus.setPadding(dp(20), dp(12), dp(20), dp(12));
         connectionStatus.setText("正在连接远程桌面");
-        connectionStatus.setOnClickListener(view -> { RdpCommunicator backend = rdp(); if (backend != null) backend.retryConnectionNow(); });
+        connectionStatus.setOnClickListener(view -> {
+            RdpCommunicator backend = rdp();
+            if (backend == null) return;
+            if (backend.isAuthenticationFailure() || backend.isClosed()) { finish(); return; }
+            backend.retryConnectionNow();
+        });
         canvas.addView(connectionStatus, new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
         keyboardStatus = new TextView(this);
         keyboardStatus.setTextSize(20);
@@ -135,9 +186,28 @@ public final class SessionActivity extends RemoteCanvasActivity {
         if (nativeTouch != null) nativeTouch.cancel();
         PopupMenu menu = new PopupMenu(this, controls);
         menu.getMenu().add(WindowsKeyCaptureService.isAndroidKeyboardMode(this)
-                ? "键盘：安卓（Ctrl+Alt+F12 切换）" : "键盘：Windows（Ctrl+Alt+F12 切换）").setEnabled(false);
+                ? "键盘：安卓" : "键盘：Windows").setEnabled(false);
         RdpCommunicator rdp = rdp();
-        menu.getMenu().add("立即重连").setEnabled(rdp != null && !rdp.isInNormalProtocol()).setOnMenuItemClickListener(item -> { rdp.retryConnectionNow(); return true; });
+        menu.getMenu().add(R.string.ouse_shared_folder).setOnMenuItemClickListener(item -> {
+            releaseRemoteInputs();
+            startActivity(new Intent(this, SharedFolderActivity.class));
+            return true;
+        });
+        menu.getMenu().add(R.string.ouse_copy_image).setEnabled(rdp != null && rdp.canCopyImage() && !imageClipboard.busy())
+                .setOnMenuItemClickListener(item -> {
+                    imageTarget = rdp;
+                    imageTargetSession = rdp.clipboardSession();
+                    releaseRemoteInputs();
+                    try {
+                        imagePicker.launch(new androidx.activity.result.PickVisualMediaRequest.Builder()
+                                .setMediaType(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE).build());
+                    } catch (android.content.ActivityNotFoundException error) {
+                        imageTarget = null; imageTargetSession = 0;
+                        android.widget.Toast.makeText(this, R.string.ouse_image_picker_failed, android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                    return true;
+                });
+        menu.getMenu().add("立即重连").setEnabled(rdp != null && !rdp.isInNormalProtocol() && !rdp.isAuthenticationFailure() && !rdp.isClosed()).setOnMenuItemClickListener(item -> { rdp.retryConnectionNow(); return true; });
         menu.getMenu().add(rdp != null && rdp.isNativeTouchReady() ? "原生触摸：已连接" : "原生触摸：未连接，使用兼容操作").setEnabled(false);
         menu.getMenu().add(R.string.ouse_settings)
                 .setOnMenuItemClickListener(item -> {
@@ -160,11 +230,6 @@ public final class SessionActivity extends RemoteCanvasActivity {
                     return true;
                 });
         menu.show();
-    }
-
-    @Override
-    public void onBackPressed() {
-        showControls();
     }
 
     @Override
@@ -207,6 +272,34 @@ public final class SessionActivity extends RemoteCanvasActivity {
         return super.dispatchGenericMotionEvent(event);
     }
 
+    private void updateDisplay() {
+        if (getCanvas() == null || displayResize == null) return;
+        int width = getCanvas().getWidth(), height = getCanvas().getHeight();
+        RdpCommunicator backend = rdp();
+        if (backend != null) backend.recordViewport(width, height);
+        if (width < 200 || height < 200) return;
+        var display = com.iiordanov.bVNC.OuseDesktopPreferences.displayFor(this, width, height);
+        displayResize.update(display.width, display.height, display.scale);
+    }
+
+    @Override protected void onStart() {
+        super.onStart();
+        sessionVisible = true;
+        if (getCanvas() != null) getCanvas().setRenderingEnabled(true);
+        if (displayResize != null && getSharedPreferences(Constants.generalSettingsTag, MODE_PRIVATE).getBoolean("ouseDynamicResolution", true)) displayResize.start();
+        RdpCommunicator backend = rdp();
+        if (backend != null) { backend.setSessionVisible(true); RdpKeepAliveService.setVisible(backend, true); }
+    }
+
+    @Override protected void onStop() {
+        sessionVisible = false;
+        if (displayResize != null) displayResize.stop();
+        if (getCanvas() != null) getCanvas().setRenderingEnabled(false);
+        RdpCommunicator backend = rdp();
+        if (backend != null) { backend.setSessionVisible(false); RdpKeepAliveService.setVisible(backend, false); }
+        super.onStop();
+    }
+
     @Override
     protected void onPause() {
         if (keyboardHealth != null) keyboardHealth.stop();
@@ -218,6 +311,11 @@ public final class SessionActivity extends RemoteCanvasActivity {
         super.onResume();
         onKeyboardRoutingChanged(WindowsKeyCaptureService.isAndroidKeyboardMode(this));
         if (keyboardHealth != null) keyboardHealth.start();
+        if (displayResize != null) {
+            if (getSharedPreferences(Constants.generalSettingsTag, MODE_PRIVATE).getBoolean("ouseDynamicResolution", true)) displayResize.start();
+            else displayResize.stop();
+        }
+        updateDisplay();
         sessionHandler.removeCallbacks(attachSession);
         sessionHandler.post(attachSession);
     }
@@ -231,11 +329,17 @@ public final class SessionActivity extends RemoteCanvasActivity {
     }
 
     @Override protected void onDestroy() {
+        if (imageClipboard != null) imageClipboard.close();
+        imageTarget = null;
+        if (inputDevices != null) inputDevices.unregisterInputDeviceListener(deviceListener);
+        if (displayResize != null) displayResize.stop();
         if (keyboardHealth != null) keyboardHealth.stop();
         sessionHandler.removeCallbacksAndMessages(null);
         if (attachedBackend != null && isFinishing()) RdpKeepAliveService.detach(this, attachedBackend);
         if (attachedBackend != null && !RdpKeepAliveService.owns(attachedBackend)) attachedBackend.setConnectionStateListener(null);
+        boolean keeping = keepConnectionAfterActivityDestroyed();
         super.onDestroy();
+        if (!keeping && getCanvas() != null) getCanvas().releaseBuffers();
     }
 
     @Override

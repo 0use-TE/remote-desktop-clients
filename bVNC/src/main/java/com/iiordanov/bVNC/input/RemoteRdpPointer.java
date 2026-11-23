@@ -121,6 +121,10 @@ public class RemoteRdpPointer extends RemotePointer {
         sendPointerEvent(x, y, metaState, true);
     }
 
+    public void cancelHeldButtons() {
+        if ((prevPointerMask & POINTER_DOWN_MASK) != 0) releaseButton(pointerX, pointerY, 0);
+    }
+
     @Override
     public void releaseButton(int x, int y, int metaState) {
         pointerMask = MOUSE_BUTTON_MOVE;

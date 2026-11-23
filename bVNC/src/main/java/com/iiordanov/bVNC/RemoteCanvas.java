@@ -142,6 +142,7 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
     boolean userPanned = false;
 
     volatile boolean isForegrounded = false;
+    private volatile boolean renderingEnabled = true;
 
     /**
      * This runnable displays a message on the screen.
@@ -161,7 +162,7 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
 
     private final FrameUpdateScheduler frameUpdates = new FrameUpdateScheduler(new FrameUpdateScheduler.Target() {
         public void postFrame(Runnable frame) { postOnAnimation(frame); }
-        public void invalidate(Rect bounds) { RemoteCanvas.this.invalidate(bounds); }
+        public void invalidate(Rect bounds) { if (renderingEnabled) RemoteCanvas.this.invalidate(bounds); }
     });
     private final java.util.List<AbstractDrawableData> retiredDrawables = new java.util.ArrayList<>();
 
@@ -702,6 +703,7 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
     }
 
     public void reDraw(float x, float y, float w, float h) {
+        if (!renderingEnabled) return;
         frameUpdates.request(FrameUpdateScheduler.viewBounds(x, y, w, h, shiftX, shiftY, getZoomFactor()));
     }
 
@@ -988,6 +990,22 @@ public class RemoteCanvas extends AppCompatImageView implements Viewable {
     @Override
     public boolean isForegrounded() {
         return isForegrounded;
+    }
+
+    public void setRenderingEnabled(boolean enabled) {
+        renderingEnabled = enabled;
+        if (enabled) postInvalidateOnAnimation(); else frameUpdates.clear();
+    }
+
+    public void releaseBuffers() {
+        setRenderingEnabled(false);
+        synchronized (this) {
+            setImageDrawable(null);
+            if (myDrawable != null) myDrawable.dispose();
+            myDrawable = null;
+            for (AbstractDrawableData previous : retiredDrawables) previous.dispose();
+            retiredDrawables.clear();
+        }
     }
 
     public void setForegrounded(boolean foregrounded) {

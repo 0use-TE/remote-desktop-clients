@@ -11,11 +11,12 @@ OuseRDP 是基于 [iiordanov/remote-desktop-clients](https://github.com/iiordano
 ## 为平板使用做的改进
 
 - **简单连接**：添加电脑、保存连接配置，点选进入远程桌面。
+- **共享文件夹**：在 Windows 打开 `\\tsclient\OuseRDP`，双向复制文件、视频和整个目录；安卓端支持导入、批量保存与取消，见 [使用说明](OuseRDP-app/SHARED_FOLDER.md)。
 - **原生触摸**：通过 RDP 触摸通道传递多点触摸，服务端支持时可使用触摸应用；通道未连接时使用兼容操作。
 - **键盘路由**：捕获 Win、Alt+Tab 等 Windows 快捷键；Ctrl+Alt+F12 在 Windows 与安卓键盘之间切换，安卓模式显示大字提示。
 - **后台保持连接**：切换安卓应用时，通过前台服务维持会话，并提供连接通知。
 - **断线恢复**：已连接会话中断后自动重试，网络恢复后继续尝试，也能手动重连。
-- **显示与滚动**：调整远程分辨率、Windows 显示缩放和滚动灵敏度；本地使用 32 位颜色缓冲，画面更新随屏幕刷新合并。
+- **显示与滚动**：调整远程分辨率、Windows 显示缩放和滚动灵敏度；服务端支持时可跟随窗口调整分辨率。本地使用 32 位颜色缓冲，画面更新随屏幕刷新合并。
 
 ![OuseRDP 设置](site/assets/settings.png)
 
@@ -36,7 +37,7 @@ Windows 需要支持作为 RDP 服务端的版本，例如专业版或企业版�
 
 ## 构建
 
-当前应用版本为 **0.1.14**。使用 JDK 21、Android SDK，以及上游构建流程准备的 FreeRDP 和其他原生依赖；完整依赖准备步骤保留在 [上游构建文档](docs/UPSTREAM.md)。本仓库不包含完整原生依赖产物。
+当前本地测试版本为 **0.1.17**，新增 [共享文件夹](OuseRDP-app/SHARED_FOLDER.md)，并保留 [图片复制](OuseRDP-app/CLIPBOARD.md)。收尾范围与验收记录见 [STABILITY.md](OuseRDP-app/STABILITY.md)。使用 JDK 21、Android SDK，以及上游构建流程准备的 FreeRDP 和其他原生依赖；完整依赖准备步骤保留在 [上游构建文档](docs/UPSTREAM.md)。本仓库不包含完整原生依赖产物。
 
 Windows 上先设置 `JAVA_HOME` 与 `ANDROID_HOME`，再构建触摸桥接库和 APK：
 

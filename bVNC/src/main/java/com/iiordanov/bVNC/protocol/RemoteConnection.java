@@ -81,7 +81,8 @@ abstract public class RemoteConnection implements PointerInputHandler, KeyInputH
      * Handler for the dialogs that display the x509/RDP/SSH key signatures to the user.
      * Also shows the dialogs which show various connection failures.
      */
-    public static Handler handler;
+    public Handler handler;
+    private final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
     public Map<String, String> vmNameToId = new HashMap<>();
     // RFB Decoder
     Decoder decoder = null;
@@ -182,7 +183,7 @@ abstract public class RemoteConnection implements PointerInputHandler, KeyInputH
     }
 
     public void setHandler(Handler handler) {
-        RemoteConnection.handler = handler;
+        this.handler = handler;
     }
 
     /**
@@ -285,6 +286,7 @@ abstract public class RemoteConnection implements PointerInputHandler, KeyInputH
      * Method that disconnects from the remote server.
      */
     public void closeConnection() {
+        if (Utils.isOuseRdp(context) && !closed.compareAndSet(false, true)) return;
         maintainConnection = false;
 
         if (keyboard != null) {
@@ -316,6 +318,9 @@ abstract public class RemoteConnection implements PointerInputHandler, KeyInputH
             canvas.writeScreenshotToFile(context.getFilesDir() + "/" + connection.getScreenshotFilename(), 720);
         }
         onDestroy();
+        if (Utils.isOuseRdp(context) && canvas instanceof com.iiordanov.bVNC.RemoteCanvas remoteCanvas) {
+            remoteCanvas.post(remoteCanvas::releaseBuffers);
+        }
     }
 
     /**

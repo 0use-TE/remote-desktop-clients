@@ -23,12 +23,16 @@ public final class RdpKeepAliveService extends Service {
     private ConnectivityManager connectivity;
     private ConnectivityManager.NetworkCallback networkCallback;
     private OwnedSession activeOwner;
+    private BroadcastReceiver screenReceiver;
+    private boolean screenOn = true;
 
     private static final class OwnedSession {
         final RdpCommunicator backend;
         final Runnable close;
         final Intent resume;
         WeakReference<SessionActivity> activity;
+        boolean visible = true;
+        RdpCommunicator.ConnectionState state = RdpCommunicator.ConnectionState.CONNECTING;
         OwnedSession(SessionActivity ui, RdpCommunicator backend) {
             this.backend = backend;
             this.close = ui.getRemoteConnection()::closeConnection;
@@ -48,14 +52,41 @@ public final class RdpKeepAliveService extends Service {
         OwnedSession target = current;
         backend.setConnectionStateListener((state, attempt, delay) -> {
             if (owned != target) return;
+            target.state = state;
             status = SessionActivity.stateText(state, attempt, delay);
             RdpKeepAliveService service = running;
+            if (service != null) service.updateLocks();
             if (service != null) ((NotificationManager) service.getSystemService(NOTIFICATION_SERVICE)).notify(NOTIFICATION, service.notification());
             SessionActivity activity = target.activity.get();
             if (activity != null && !activity.isDestroyed()) activity.showConnectionState(state, attempt, delay);
         });
         Intent intent = new Intent(ui, RdpKeepAliveService.class);
         if (Build.VERSION.SDK_INT >= 26) ui.startForegroundService(intent); else ui.startService(intent);
+    }
+    static void setVisible(RdpCommunicator backend, boolean visible) {
+        OwnedSession current = owned;
+        if (current != null && current.backend == backend) {
+            current.visible = visible;
+            RdpKeepAliveService service = running;
+            if (service != null) service.updateLocks();
+        }
+    }
+    private void updateLocks() {
+        OwnedSession current = owned;
+        boolean active = current != null && switch (current.state) {
+            case CONNECTING, CONNECTED, RECONNECTING, WAITING_FOR_NETWORK -> true;
+            default -> false;
+        };
+        boolean wifiBoost = active && current.visible && screenOn
+                && current.state != RdpCommunicator.ConnectionState.WAITING_FOR_NETWORK;
+        if (wakeLock != null) {
+            if (active && !wakeLock.isHeld()) wakeLock.acquire();
+            else if (!active && wakeLock.isHeld()) wakeLock.release();
+        }
+        if (wifiLock != null) {
+            if (wifiBoost && !wifiLock.isHeld()) wifiLock.acquire();
+            else if (!wifiBoost && wifiLock.isHeld()) wifiLock.release();
+        }
     }
     /** Disable keepalive while leaving a visible activity's connection in place. */
     public static void detach(Context context, RdpCommunicator backend) {
@@ -95,15 +126,29 @@ public final class RdpKeepAliveService extends Service {
         else startForeground(NOTIFICATION, notification());
         if (wakeLock == null) {
             wakeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OuseRDP:session");
-            wakeLock.acquire();
+            wakeLock.setReferenceCounted(false);
             WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
-            if (wifi != null) { wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "OuseRDP:session"); wifiLock.acquire(); }
+            if (wifi != null) { wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "OuseRDP:session"); wifiLock.setReferenceCounted(false); }
+            screenOn = ((PowerManager) getSystemService(POWER_SERVICE)).isInteractive();
+            screenReceiver = new BroadcastReceiver() {
+                @Override public void onReceive(Context context, Intent intent) {
+                    screenOn = Intent.ACTION_SCREEN_ON.equals(intent.getAction());
+                    OwnedSession current = owned;
+                    if (current != null) current.backend.setSessionVisible(screenOn && current.visible);
+                    updateLocks();
+                }
+            };
+            IntentFilter screenFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+            screenFilter.addAction(Intent.ACTION_SCREEN_OFF);
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, screenFilter, Context.RECEIVER_NOT_EXPORTED);
+            else registerReceiver(screenReceiver, screenFilter);
             connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
             networkCallback = new ConnectivityManager.NetworkCallback() {
                 @Override public void onAvailable(Network network) { OwnedSession current = owned; if (current != null) current.backend.onNetworkAvailable(); }
             };
             connectivity.registerNetworkCallback(new NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(), networkCallback);
         }
+        updateLocks();
         return START_NOT_STICKY;
     }
     @Override public void onTaskRemoved(Intent rootIntent) {
@@ -113,12 +158,19 @@ public final class RdpKeepAliveService extends Service {
     }
     @Override public void onDestroy() {
         if (running == this) running = null;
-        if (connectivity != null && networkCallback != null) connectivity.unregisterNetworkCallback(networkCallback);
+        if (connectivity != null && networkCallback != null) {
+            try { connectivity.unregisterNetworkCallback(networkCallback); }
+            catch (IllegalArgumentException ignored) { /* Callback already removed. */ }
+        }
+        if (screenReceiver != null) unregisterReceiver(screenReceiver);
         if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         OwnedSession current = owned;
         if (current != null && current == activeOwner) {
             owned = null; current.backend.setConnectionStateListener(null); current.close.run();
+            SessionActivity activity = current.activity.get();
+            if (activity != null && !activity.isDestroyed() && !activity.isFinishing())
+                activity.showConnectionState(RdpCommunicator.ConnectionState.DISCONNECTED, 0, 0);
         }
         super.onDestroy();
     }

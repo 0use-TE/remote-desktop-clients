@@ -269,8 +269,16 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
         if (hasFocus) {
             controlImmersive();
         } else {
-            WindowsKeyCaptureService.releaseKeys(this);
+            releaseRemoteInputs();
         }
+    }
+
+    public void releaseRemoteInputs() {
+        WindowsKeyCaptureService.releaseKeys(this);
+        if (remoteConnection == null) return;
+        if (remoteConnection.getKeyboard() instanceof RemoteRdpKeyboard keyboard) keyboard.releaseLocalState();
+        if (remoteConnection.getPointer() instanceof com.iiordanov.bVNC.input.RemoteRdpPointer pointer) pointer.cancelHeldButtons();
+        if (remoteConnection.getRfbConn() instanceof com.undatech.opaque.RdpCommunicator backend) backend.releaseAllInput();
     }
 
     @SuppressLint("ObsoleteSdkInt")
@@ -801,6 +809,7 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
     @Override
     protected void onPause() {
+        releaseRemoteInputs();
         WindowsKeyCaptureService.detach(this);
         super.onPause();
         Log.i(TAG, "onPause called.");
@@ -1464,6 +1473,7 @@ public class RemoteCanvasActivity extends AppCompatActivity implements
 
     @Override
     public void onBackPressed() {
+        if (usesCompactSessionUi()) { getOnBackPressedDispatcher().onBackPressed(); return; }
         if (GeneralUtils.isTv(this)) {
             disconnectAndFinishActivity();
             super.onBackPressed();

@@ -151,5 +151,6 @@ public final class WindowsKeyCaptureService extends AccessibilityService
     @Override
     public void onInputDeviceRemoved(int deviceId) {
         capture.inputDeviceRemoved(deviceId, WindowsKeyCaptureService::sendKey);
+        if (session != null) session.releaseRemoteInputs();
     }
 }

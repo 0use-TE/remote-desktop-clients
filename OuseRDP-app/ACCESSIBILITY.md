@@ -30,8 +30,9 @@ a globally disabled accessibility setting and never starts a new recovery for a
 service the user disabled. Automatic attempts have a one-minute cooldown; no
 boot receiver or perpetual polling service is added.
 
-The export action writes this app's service state and up to eight historical
-process exits through Android's document picker. It does not record keystrokes,
+The settings diagnostics export includes this app's service state and up to eight
+historical process exits, together with bounded RDP session metadata, through
+Android's document picker. It does not record keystrokes,
 remote credentials, or other apps' events. Native crashes and OEM process kills
 remain separate causes requiring their own diagnosis; this change does not
 claim to prevent them.

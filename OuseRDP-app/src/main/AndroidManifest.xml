@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Optional, explicitly granted over ADB for recovery of our own service only. -->
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
     <uses-permission-sdk-23 android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
 
@@ -24,7 +24,8 @@
         <activity android:name="com.undatech.opaque.ConnectionGridActivity" tools:node="remove" />
         <activity android:name="com.iiordanov.bVNC.GlobalPreferencesActivity" tools:node="remove" />
         <activity android:name="com.iiordanov.bVNC.RemoteCanvasActivity" tools:node="remove" />
-        <activity android:name="com.iiordanov.pubkeygenerator.GeneratePubkeyActivity" tools:node="remove" />
+        <!-- This legacy declaration is intentionally removed from the merged APK. -->
+        <activity android:name="com.iiordanov.pubkeygenerator.GeneratePubkeyActivity" tools:node="remove" tools:ignore="MissingClass" />
 
         <activity android:name=".ConnectionsActivity" android:exported="true"
             android:windowSoftInputMode="stateAlwaysHidden|adjustResize">
@@ -34,6 +35,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".SettingsActivity" android:exported="false" />
+        <activity android:name=".SharedFolderActivity" android:exported="false" />
         <service android:name=".RdpKeepAliveService" android:exported="false" android:foregroundServiceType="connectedDevice" />
         <activity
             android:name=".SessionActivity"

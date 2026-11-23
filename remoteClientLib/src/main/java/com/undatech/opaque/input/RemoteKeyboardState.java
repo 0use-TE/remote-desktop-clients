@@ -33,6 +33,8 @@ public class RemoteKeyboardState {
         this.debugLogging = debugLogging;
     }
 
+    public void reset() { remoteKeyboardMetaState = 0; hardwareMetaState = 0; }
+
     public void detectHardwareMetaState(KeyEvent event) {
         int keyCode = event.getKeyCode();
         int scanCode = event.getScanCode();

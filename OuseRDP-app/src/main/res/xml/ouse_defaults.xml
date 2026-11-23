@@ -13,6 +13,7 @@
             android:entryValues="@array/ouse_resolution_values"
             android:defaultValue="0"
             app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat android:key="ouseDynamicResolution" android:title="跟随窗口调整分辨率" android:defaultValue="true" />
         <ListPreference
             android:key="ouseWindowsScale"
             android:title="@string/ouse_windows_scale"
@@ -27,7 +28,6 @@
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/ouse_input_defaults">
         <Preference android:key="ouseShortcutSetup" android:title="@string/ouse_capture_windows_shortcuts" />
-        <Preference android:key="ouseKeyboardDiagnostics" android:title="导出键盘服务诊断日志" />
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/ouse_pointer_defaults">
         <ListPreference
@@ -38,6 +38,8 @@
             android:defaultValue="50"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
+    <Preference android:key="ouseSharedFolder" android:title="@string/ouse_shared_folder" />
+    <Preference android:key="ouseSessionDiagnostics" android:title="导出诊断日志" />
     <Preference
         android:key="ouseAbout"
         android:title="@string/ouse_about" />
